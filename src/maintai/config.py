@@ -15,7 +15,7 @@ import os
 from functools import cache
 from pathlib import Path
 
-from pydantic import SecretStr, field_validator
+from pydantic import BaseModel, SecretStr, field_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -45,6 +45,29 @@ def _find_env_file() -> Path:
     return _project_root() / ".env"
 
 
+class DataRulesSettings(BaseModel):
+    missing_warning_rate: float = 0.05
+    missing_severe_rate: float = 0.20
+    duplicate_row_warning_rate: float = 0.01
+    duplicate_row_error_rate: float = 0.10
+    near_constant_unique_ratio: float = 0.001
+    flatline_min_length: int = 10
+    flatline_min_ratio: float = 0.05
+    outlier_mad_threshold: float = 3.5
+    outlier_severe_rate: float = 0.10
+    timestamp_gap_factor: float = 5.0
+    sampling_cv_threshold: float = 1.0
+    asset_imbalance_ratio: float = 10.0
+    target_imbalance_ratio: float = 20.0
+    min_trainable_samples: int = 100
+
+
+class SplitSettings(BaseModel):
+    test_size: float = 0.20
+    validation_size: float = 0.20
+    random_state: int = 42
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=str(_find_env_file()),
@@ -52,6 +75,7 @@ class Settings(BaseSettings):
         yaml_file_encoding="utf-8",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        env_nested_delimiter="__",
         extra="ignore",
     )
 
@@ -74,6 +98,8 @@ class Settings(BaseSettings):
     api_port: int = 8000
     request_id_header: str = "X-Request-ID"
     max_upload_mb: int = 200
+    data: DataRulesSettings = DataRulesSettings()
+    split: SplitSettings = SplitSettings()
 
     @classmethod
     def settings_customise_sources(

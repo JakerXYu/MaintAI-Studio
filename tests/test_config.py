@@ -30,3 +30,11 @@ def test_llm_key_is_masked():
 
 def test_get_settings_is_cached():
     assert get_settings() is get_settings()
+
+
+def test_data_and_split_yaml_are_loaded():
+    settings = Settings()
+    assert settings.data.missing_warning_rate == 0.05
+    assert settings.data.flatline_min_length == 10
+    assert settings.split.test_size == 0.20
+    assert settings.split.validation_size == 0.20
