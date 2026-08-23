@@ -1,0 +1,98 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: maintai
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-maintai}
+      POSTGRES_DB: maintai
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maintai -d maintai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mlflow:
+    build: .
+    command:
+      - "mlflow"
+      - "server"
+      - "--backend-store-uri"
+      - "postgresql+psycopg2://maintai:${POSTGRES_PASSWORD:-maintai}@postgres:5432/mlflow"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "5000"
+      - "--artifacts-destination"
+      - "/mlflow/artifacts"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build: .
+    command: ["python", "-m", "maintai.db.migrate"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://maintai:${POSTGRES_PASSWORD:-maintai}@postgres:5432/maintai
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://maintai:${POSTGRES_PASSWORD:-maintai}@postgres:5432/maintai
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      DATASET_STORAGE_PATH: /app/data/uploads
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      mlflow:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - dataset_storage:/app/data/uploads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ui:
+    build: .
+    command: ["streamlit", "run", "src/maintai/ui/app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
+    environment:
+      MAINTAI_API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "8501:8501"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
+  mlflow_artifacts:
+  dataset_storage:

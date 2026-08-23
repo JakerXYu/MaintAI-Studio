@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.so
+build/
+dist/
+
+# Virtual env
+.venv/
+.tools/
+venv/
+env/
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+
+# Test / tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Databases (runtime + test)
+*.db
+*.sqlite
+*.sqlite3
+
+# Data & artifacts (public samples and deterministic synthetic data may be committed)
+data/raw/
+data/private/
+traces/
+mlruns/
+mlflow_artifacts/
+artifacts/
+*.log
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

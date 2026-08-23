@@ -1,0 +1,22 @@
+# MaintAI Studio — demo defaults (Phase A).
+# These are DEMO defaults, NOT ABB or any industry standard.
+# Override any value via environment variables (see .env.example); env vars and
+# `.env` take precedence over this file.
+
+project_name: "MaintAI Studio"
+environment: "dev"
+random_seed: 42
+
+# Runtime uses Postgres. Tests override DATABASE_URL with SQLite.
+database_url: "postgresql+psycopg://maintai:maintai@postgres:5432/maintai"
+mlflow_tracking_uri: "http://mlflow:5000"
+
+# mock = offline default; no network required
+llm_provider: "mock"
+llm_base_url: ""
+llm_model: ""
+
+api_host: "0.0.0.0"
+api_port: 8000
+request_id_header: "X-Request-ID"
+max_upload_mb: 200
