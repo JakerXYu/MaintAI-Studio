@@ -12,7 +12,7 @@ implemented.
 | Repo foundation (config, docs, Docker) | ✅ Phase A |
 | Postgres + MLflow + FastAPI + UI health stack | Phase A implemented; runtime validation pending |
 | Business ORM models + audit | Phase A implemented; runtime validation pending |
-| P0 data intelligence (ingest/profile/task) | Not started |
+| P0 data intelligence (ingest/profile/task) | Implemented and locally tested |
 | P0 ML pipeline / MLflow / registry | Not started |
 | P0 LangGraph copilot | Not started |
 | P0 Streamlit dashboards | Not started |
@@ -59,7 +59,7 @@ python -m maintai.db.migrate
 uvicorn maintai.api.main:app --reload --port 8000
 ```
 
-## Endpoints (Phase A)
+## Implemented endpoints
 
 ```text
 GET /health         liveness + service metadata
@@ -69,6 +69,10 @@ GET /health/ready   readiness (DB + MLflow; 503 if either is unavailable)
 
 Every response carries `X-Request-ID` (echoed if valid, generated if absent,
 `400` if invalid).
+
+Implemented Phase B endpoints under `/api/v1` cover dataset upload, list/get,
+profiling, quality reports, and deterministic task recommendation. See
+[`docs/API_CONTRACT.md`](docs/API_CONTRACT.md).
 
 ## Testing
 
@@ -94,6 +98,8 @@ health, and request-ID behavior.
 - Compose has not yet been runtime-validated on this machine because Docker is
   not installed; Python 3.11 is also not currently available locally.
 - Schema bootstrap uses `create_all`; Alembic not yet introduced.
+- `create_all` does not alter an existing Phase A database. Until Alembic is
+  introduced, recreate a pre-Phase-B demo database before first Phase B start.
 - Demo DB credentials in `.env.example` are **demo defaults**, not real secrets.
 - This prototype provides model-based decision support only; it does not
   replace qualified maintenance, safety, or engineering judgment.

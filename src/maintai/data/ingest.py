@@ -8,6 +8,7 @@ and hashed before being parsed to a DataFrame. All failures raise stable
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import io
 from dataclasses import dataclass
@@ -72,6 +73,8 @@ def sanitize_filename(name: str | None) -> str:
         raise UnsafeFilenameError("filename must not be a path traversal")
     if ":" in stripped:
         raise UnsafeFilenameError("filename must not contain a drive or stream separator")
+    if len(stripped.encode("utf-8")) > 255:
+        raise UnsafeFilenameError("filename must not exceed 255 UTF-8 bytes")
     posix_name = PurePosixPath(stripped).name
     windows_name = PureWindowsPath(stripped).name
     if stripped not in (posix_name, windows_name):
@@ -117,6 +120,21 @@ def _validate_frame_limits(
         )
 
 
+def _validate_csv_structure(data: bytes, *, max_rows: int, max_columns: int) -> None:
+    try:
+        text = io.TextIOWrapper(io.BytesIO(data), encoding="utf-8-sig", errors="strict")
+        reader = csv.reader(text)
+        for row_number, row in enumerate(reader, start=1):
+            if row_number > max_rows + 1:  # Header is not a trainable row.
+                raise FileTooLargeError(f"dataset exceeds the {max_rows} row limit")
+            if len(row) > max_columns:
+                raise FileTooLargeError(f"dataset exceeds the {max_columns} column limit")
+    except UnicodeDecodeError as exc:
+        raise DataParseError("failed to parse CSV: content must be UTF-8") from exc
+    except csv.Error as exc:
+        raise DataParseError("failed to parse CSV: invalid tabular content") from exc
+
+
 def read_bytes_to_dataframe(
     data: bytes,
     filename: str,
@@ -130,6 +148,7 @@ def read_bytes_to_dataframe(
     buffer = io.BytesIO(data)
     try:
         if ext == ".csv":
+            _validate_csv_structure(data, max_rows=max_rows, max_columns=max_columns)
             frame = pd.read_csv(buffer)
         elif ext == ".parquet":
             import pyarrow.parquet as pq

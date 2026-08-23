@@ -27,14 +27,25 @@ def new_id() -> str:
     return uuid.uuid4().hex
 
 
+# Dataset lifecycle states (set by the application service layer).
+DATASET_STATUS_UPLOADED = "uploaded"
+DATASET_STATUS_PROFILED = "profiled"
+DATASET_STATUS_TASK_RECOMMENDED = "task_recommended"
+
+
 class Dataset(Base):
     __tablename__ = "datasets"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
     source_type: Mapped[str] = mapped_column(String(32), nullable=False, default="csv")
     file_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     file_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=DATASET_STATUS_UPLOADED
+    )
     row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     column_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     schema_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
@@ -46,6 +57,9 @@ class Dataset(Base):
     task_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
     )
 
 

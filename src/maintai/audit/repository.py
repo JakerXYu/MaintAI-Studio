@@ -16,7 +16,11 @@ class AuditRepository:
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self._session_factory = session_factory
 
-    def add(self, event: AuditEvent) -> AuditEvent:
+    def add(self, event: AuditEvent, *, session: Session | None = None) -> AuditEvent:
+        if session is not None:
+            session.add(event)
+            session.flush()
+            return event
         with self._session_factory() as session:
             session.add(event)
             session.commit()

@@ -23,6 +23,7 @@ class AuditService:
         entity_type: str | None = None,
         entity_id: str | None = None,
         payload: dict[str, Any] | None = None,
+        session: Session | None = None,
     ) -> AuditEvent:
         event = AuditEvent(
             actor_type=actor_type,
@@ -32,7 +33,7 @@ class AuditService:
             entity_id=entity_id,
             payload_json=payload,
         )
-        return self._repository.add(event)
+        return self._repository.add(event, session=session)
 
 
 def get_audit_service(session_factory: sessionmaker[Session]) -> AuditService:

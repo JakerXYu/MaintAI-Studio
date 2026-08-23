@@ -17,7 +17,9 @@ from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 
 from maintai import __version__
+from maintai.api.datasets import build_dataset_service, build_datasets_router
 from maintai.api.request_id import InvalidRequestIdError, validate_request_id
+from maintai.application.datasets import DatasetService
 from maintai.config import Settings, get_settings
 from maintai.db.session import get_session_factory
 
@@ -33,14 +35,18 @@ def create_app(
     session_factory: sessionmaker | None = None,
     settings: Settings | None = None,
     mlflow_healthcheck: Callable[[], None] | None = None,
+    dataset_service: DatasetService | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     session_factory = session_factory or get_session_factory()
     mlflow_healthcheck = mlflow_healthcheck or (
         lambda: _mlflow_healthcheck(settings.mlflow_tracking_uri)
     )
+    if dataset_service is None:
+        dataset_service = build_dataset_service(session_factory, settings)
 
     app = FastAPI(title=settings.project_name, version=__version__)
+    app.include_router(build_datasets_router(dataset_service), prefix="/api/v1")
 
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):
