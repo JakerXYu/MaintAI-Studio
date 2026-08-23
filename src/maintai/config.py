@@ -68,6 +68,13 @@ class SplitSettings(BaseModel):
     random_state: int = 42
 
 
+class MLRulesSettings(BaseModel):
+    seed: int = 42
+    n_jobs: int = 1
+    scale_numeric: bool = True
+    minimum_recall: float = 0.80
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=str(_find_env_file()),
@@ -100,6 +107,7 @@ class Settings(BaseSettings):
     max_upload_mb: int = 200
     data: DataRulesSettings = DataRulesSettings()
     split: SplitSettings = SplitSettings()
+    ml: MLRulesSettings = MLRulesSettings()
 
     @classmethod
     def settings_customise_sources(

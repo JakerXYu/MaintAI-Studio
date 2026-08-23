@@ -38,3 +38,5 @@ def test_data_and_split_yaml_are_loaded():
     assert settings.data.flatline_min_length == 10
     assert settings.split.test_size == 0.20
     assert settings.split.validation_size == 0.20
+    assert settings.ml.minimum_recall == 0.80
+    assert settings.ml.n_jobs == 1
