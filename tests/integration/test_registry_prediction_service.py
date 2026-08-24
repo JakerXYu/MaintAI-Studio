@@ -240,6 +240,16 @@ def test_full_registry_and_prediction_lifecycle(
     assert deployed["deployment_status"] == "demo_deployed"
     assert registry_service.get(registered["id"])["deployment_status"] == "demo_deployed"
 
+    # Copilot-style preview is read-only: no PredictionEvent or audit write.
+    preview = prediction_service.predict(
+        registered["id"],
+        [_record(0.0, "a", True)],
+        persist=False,
+    )
+    assert preview["count"] == 1
+    assert prediction_repository.list(registered_model_id=registered["id"]) == []
+    assert _predict_audit(audit_repository, registered["id"]) == []
+
     # single predict: decoded label + probabilities + explanation + disclaimer
     single = prediction_service.predict(registered["id"], [_record(0.0, "a", True)])
     assert single["model_version"] == registered["version"]

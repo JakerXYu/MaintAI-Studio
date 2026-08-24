@@ -17,6 +17,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 
 from maintai import __version__
+from maintai.agent.service import CopilotService
+from maintai.api.copilot import build_copilot_router, build_copilot_service
 from maintai.api.datasets import build_dataset_service, build_datasets_router
 from maintai.api.experiments import build_experiment_service, build_experiments_router
 from maintai.api.models import (
@@ -48,6 +50,7 @@ def create_app(
     experiment_service: ExperimentService | None = None,
     model_registry_service: ModelRegistryService | None = None,
     prediction_service: PredictionService | None = None,
+    copilot_service: CopilotService | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     session_factory = session_factory or get_session_factory()
@@ -62,12 +65,21 @@ def create_app(
         built_registry, built_prediction = build_model_services(session_factory, settings)
         model_registry_service = model_registry_service or built_registry
         prediction_service = prediction_service or built_prediction
+    if copilot_service is None:
+        copilot_service = build_copilot_service(
+            settings,
+            dataset_service,
+            experiment_service,
+            model_registry_service,
+            prediction_service,
+        )
 
     app = FastAPI(title=settings.project_name, version=__version__)
     app.include_router(build_datasets_router(dataset_service), prefix="/api/v1")
     app.include_router(build_experiments_router(experiment_service), prefix="/api/v1")
     app.include_router(build_models_router(model_registry_service), prefix="/api/v1")
     app.include_router(build_predict_router(prediction_service), prefix="/api/v1")
+    app.include_router(build_copilot_router(copilot_service), prefix="/api/v1")
 
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):

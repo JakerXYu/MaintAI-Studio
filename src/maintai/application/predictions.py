@@ -300,8 +300,18 @@ class PredictionService:
 
     # -- public API --------------------------------------------------------
 
-    def predict(self, registered_id: str, records: list[dict[str, Any]]) -> dict[str, Any]:
-        """Predict for 1..1000 records on a ``demo_deployed`` registered model."""
+    def predict(
+        self,
+        registered_id: str,
+        records: list[dict[str, Any]],
+        *,
+        persist: bool = True,
+    ) -> dict[str, Any]:
+        """Predict on a deployed model; optionally skip event/audit persistence.
+
+        ``persist=False`` is reserved for read-only previews such as the Copilot
+        explanation tool. HTTP inference uses the default and remains audited.
+        """
         registered = self._model_repository.get(registered_id)
         if registered is None:
             raise PredictionModelNotFoundError(
@@ -388,22 +398,23 @@ class PredictionService:
                 )
             )
 
-        with self._session_factory.begin() as session:
-            self._prediction_repository.bulk_create(events, session=session)
-            self._audit.record(
-                actor_type="system",
-                action="prediction.predict",
-                entity_type="registered_model",
-                entity_id=registered.id,
-                payload={
-                    "registered_model_id": registered.id,
-                    "model_name": registered.name,
-                    "model_version": registered.version,
-                    "count": len(records),
-                    "input_hashes": input_hashes,
-                },
-                session=session,
-            )
+        if persist:
+            with self._session_factory.begin() as session:
+                self._prediction_repository.bulk_create(events, session=session)
+                self._audit.record(
+                    actor_type="system",
+                    action="prediction.predict",
+                    entity_type="registered_model",
+                    entity_id=registered.id,
+                    payload={
+                        "registered_model_id": registered.id,
+                        "model_name": registered.name,
+                        "model_version": registered.version,
+                        "count": len(records),
+                        "input_hashes": input_hashes,
+                    },
+                    session=session,
+                )
 
         return {
             "model_id": registered.id,
