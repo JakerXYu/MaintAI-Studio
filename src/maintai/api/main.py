@@ -19,9 +19,16 @@ from sqlalchemy.orm import sessionmaker
 from maintai import __version__
 from maintai.api.datasets import build_dataset_service, build_datasets_router
 from maintai.api.experiments import build_experiment_service, build_experiments_router
+from maintai.api.models import (
+    build_model_services,
+    build_models_router,
+    build_predict_router,
+)
 from maintai.api.request_id import InvalidRequestIdError, validate_request_id
 from maintai.application.datasets import DatasetService
 from maintai.application.experiments import ExperimentService
+from maintai.application.models import ModelRegistryService
+from maintai.application.predictions import PredictionService
 from maintai.config import Settings, get_settings
 from maintai.db.session import get_session_factory
 
@@ -39,6 +46,8 @@ def create_app(
     mlflow_healthcheck: Callable[[], None] | None = None,
     dataset_service: DatasetService | None = None,
     experiment_service: ExperimentService | None = None,
+    model_registry_service: ModelRegistryService | None = None,
+    prediction_service: PredictionService | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     session_factory = session_factory or get_session_factory()
@@ -49,10 +58,16 @@ def create_app(
         dataset_service = build_dataset_service(session_factory, settings)
     if experiment_service is None:
         experiment_service = build_experiment_service(session_factory, settings, dataset_service)
+    if model_registry_service is None or prediction_service is None:
+        built_registry, built_prediction = build_model_services(session_factory, settings)
+        model_registry_service = model_registry_service or built_registry
+        prediction_service = prediction_service or built_prediction
 
     app = FastAPI(title=settings.project_name, version=__version__)
     app.include_router(build_datasets_router(dataset_service), prefix="/api/v1")
     app.include_router(build_experiments_router(experiment_service), prefix="/api/v1")
+    app.include_router(build_models_router(model_registry_service), prefix="/api/v1")
+    app.include_router(build_predict_router(prediction_service), prefix="/api/v1")
 
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):

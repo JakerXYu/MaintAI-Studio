@@ -1,8 +1,7 @@
 # API Contract — MaintAI Studio
 
-Prefix: `/api/v1` for business endpoints. Health, Phase B dataset, and Phase B
-experiment endpoints are implemented; model/prediction endpoints remain planned
-P0 work.
+Prefix: `/api/v1` for business endpoints. Health, Phase B dataset, Phase B
+experiment, model registry, and prediction endpoints are implemented.
 
 ## Phase A (implemented)
 
@@ -87,13 +86,65 @@ via `GET /experiments/{id}` rather than surfaced through the background task.
 Model/artifact URIs in responses are always `runs:/` references; raw filesystem
 paths are never returned.
 
+## Phase B Models (implemented, prefix `/api/v1`)
+
+```text
+GET  /models                       ?limit=100&offset=0; 200 [RegisteredModel]
+GET  /models/{id}                  200 RegisteredModel
+POST /models/{model_run_id}/register
+        body {"name"?: str}
+        200 RegisteredModel (candidate)
+POST /models/{id}/deploy-demo
+        200 RegisteredModel (demo_deployed)
+```
+
+Status codes:
+
+- `200` reads and mutations; registering the same run under the same name is
+  idempotent.
+- `404` model-run id or registered-model id not found.
+- `409` model run is not the recommended run of a successful experiment, or the
+  run was already registered under a different name.
+- `422` invalid request body or an unsafe ``name`` (empty, path separators,
+  control characters, or characters outside `[A-Za-z0-9._-]`).
+- `500` registry/artifact backend failure; a stable `detail` is returned and
+  absolute paths are never leaked.
+
+P0 registers a trained run as a ``candidate`` and `deploy-demo` flips exactly
+one version of a name to ``demo_deployed``. There is **no** ``champion`` or
+``Production`` transition and no promotion-request route: model promotion
+requires human approval and belongs to P1. Responses expose only ``models:/``
+MLflow URIs — never raw filesystem paths or ``file://`` URIs.
+
+## Phase B Predictions (implemented, prefix `/api/v1`)
+
+```text
+POST /predict               body {"model_id": str, "records": [ {...} ] (exactly 1)}
+                            200 {"model_id","model_version","count","records"}
+POST /predict/batch         body {"model_id": str, "records": [ {...} ] (1..1000)}
+                            200 {"model_id","model_version","count","records"}
+```
+
+Status codes:
+
+- `200` inference produced; per-record results are JSON-safe and include
+  ``prediction``, ``confidence``/``positive_probability`` (classification) or
+  ``interval`` (regression), and a local ``explanation``.
+- `404` registered-model id not found.
+- `409` model exists but is not currently ``demo_deployed``.
+- `422` invalid body or records that violate the strict feature contract
+  (missing/extra features, wrong value types, or a record count outside the
+  allowed range).
+- `500` artifact/prediction backend failure; a stable `detail` is returned and
+  absolute paths are never leaked.
+
+Inference runs only against ``demo_deployed`` models. Each record is persisted
+as an immutable ``PredictionEvent`` with a content hash (never the raw input),
+and a single request-level audit event stores only counts and input hashes.
+
 ## Planned P0
 
 ```text
-GET  /models                          GET /models/{id}
-POST /models/{id}/register            POST /models/{id}/promotion-request
-
-POST /predict                         POST /predict/batch
 POST /explain/local                   GET /explain/global/{model_id}
 POST /copilot/chat
 ```
@@ -113,6 +164,10 @@ POST /cmms/work-orders/draft          GET /cmms/work-orders
 ## Conventions
 - JSON bodies; Pydantic v2 validation; 4xx with readable `detail`.
 - `POST /predict` request: `{"model_id": str, "records": [ {...} ]}`; response
-  includes `model_version`, per-record `prediction`, `probability`, `top_features`.
-- Write-like actions (promotion, CMMS) require approval in P1; audit events are
-  recorded for all major operations.
+  includes `model_version` and per-record `prediction`, `confidence` /
+  `positive_probability`, and a local `explanation` (top positive/negative
+  feature impacts).
+- Demo deployment (`deploy-demo`) is a P0 demo-serving convenience and is
+  explicitly **not** production promotion: it never sets a `champion` alias or a
+  `Production` stage. Production promotion and CMMS actions require human
+  approval in P1. Audit events are recorded for all major operations.
