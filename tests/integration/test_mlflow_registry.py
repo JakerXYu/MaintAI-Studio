@@ -134,6 +134,15 @@ def test_second_run_increments_version_and_reassigns_candidate(registry, tracker
     assert registry.get_version(MODEL_NAME, "2").alias == "candidate"
 
 
+def test_register_same_run_is_idempotent(registry, tracker):
+    pipeline, _ = _fit_pipeline()
+    tracked = _log_run(tracker, pipeline, f1=0.9)
+    first = registry.register_run(tracked.run_id, MODEL_NAME)
+    second = registry.register_run(tracked.run_id, MODEL_NAME)
+    assert second.version == first.version
+    assert len(registry.list_versions(MODEL_NAME)) == 1
+
+
 def test_registered_model_loads_predictably(registry, tracker):
     pipeline, X = _fit_pipeline()
     tracked = _log_run(tracker, pipeline, f1=0.9)

@@ -42,6 +42,10 @@ EXPERIMENT_STATUS_FAILED = "failed"
 MODEL_RUN_STATUS_SUCCESS = "success"
 MODEL_RUN_STATUS_FAILED = "failed"
 
+# RegisteredModel deployment states (set by the registry application service).
+DEPLOYMENT_STATUS_CANDIDATE = "candidate"
+DEPLOYMENT_STATUS_DEMO_DEPLOYED = "demo_deployed"
+
 
 class Dataset(Base):
     __tablename__ = "datasets"
@@ -140,14 +144,46 @@ class RegisteredModel(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     version: Mapped[str] = mapped_column(String(32), nullable=False)
+    # Internal-only controlled package artifact basename (never exposed in JSON;
+    # the artifact lives in the app-private ``artifact_root`` directory).
     artifact_uri: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    # MLflow registry reference: always a ``models:/{name}/{version}`` URI.
+    mlflow_model_uri: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     alias: Mapped[str | None] = mapped_column(String(32), nullable=True)
     approval_status: Mapped[str] = mapped_column(
         String(32), nullable=False, default="pending"
     )
+    deployment_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=DEPLOYMENT_STATUS_CANDIDATE
+    )
     deployed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
+    )
+
+
+class PredictionEvent(Base):
+    """Immutable record of a single prediction made by a deployed registered model."""
+
+    __tablename__ = "prediction_events"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    registered_model_id: Mapped[str | None] = mapped_column(
+        ForeignKey("registered_models.id", ondelete="RESTRICT"), index=True, nullable=True
+    )
+    model_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    asset_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    event_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False
+    )
+    prediction_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    probability: Mapped[float | None] = mapped_column(Float, nullable=True)
+    input_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False, index=True
     )
 
 

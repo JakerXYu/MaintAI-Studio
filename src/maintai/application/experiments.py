@@ -24,6 +24,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+import pandas as pd
 from sqlalchemy.orm import Session, sessionmaker
 
 from maintai import __version__
@@ -113,6 +115,40 @@ def _config_hash(payload: dict[str, Any]) -> str:
 
 def _iso(value) -> str | None:
     return value.isoformat() if value is not None else None
+
+
+def _json_scalar(value):
+    """Convert numpy scalars to JSON-safe Python builtins."""
+    if value is None:
+        return None
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, np.ndarray):
+        return value.item() if value.size == 1 else value.tolist()
+    return value
+
+
+def _feature_baseline(
+    train_frame: pd.DataFrame, feature_cols: list[str]
+) -> dict[str, Any]:
+    """Compute a JSON-safe raw-feature baseline on the train fold.
+
+    Numeric columns use the median, categorical and boolean columns use the mode.
+    The result contains one scalar per raw feature and never any raw row, so it
+    can be embedded in the package manifest and reused later as a local
+    explanation background.
+    """
+    baseline: dict[str, Any] = {}
+    for column in feature_cols:
+        series = train_frame[column]
+        kind = preprocess.classify_column(series)
+        if kind == "numeric":
+            value: Any = float(series.median()) if series.notna().any() else 0.0
+        else:
+            mode = series.mode()
+            value = _json_scalar(mode.iloc[0]) if not mode.empty else None
+        baseline[column] = value
+    return baseline
 
 
 class ExperimentService:
@@ -489,8 +525,9 @@ class ExperimentService:
         primary_value = best_evaluation.metrics.get(result.primary_metric)
 
         # Deterministic global explanation (SHAP with permutation fallback).
+        train_frame = frame.iloc[plan.split.train_indices]
         feature_cols = preprocess.resolve_features(
-            frame.iloc[plan.split.train_indices], target, plan.features, plan.excluded
+            train_frame, target, plan.features, plan.excluded
         )
         X_test = frame.iloc[plan.split.test_indices].loc[:, feature_cols]
         y_test = frame[target].iloc[plan.split.test_indices]
@@ -504,6 +541,43 @@ class ExperimentService:
             seed=seed,
         )
 
+        # Raw-feature baseline (train-fold median/mode) and, for regression, the
+        # empirical absolute-residual quantile are embedded in the manifest so
+        # the prediction service can reconstruct local explanations and intervals
+        # without any raw training rows.
+        feature_baseline = _feature_baseline(train_frame, feature_cols)
+        training_summary: dict[str, Any] = {
+            "experiment_id": experiment.id,
+            "config_hash": config_hash,
+            "primary_metric": result.primary_metric,
+            "value": primary_value,
+            "seed": seed,
+            "feature_baseline": feature_baseline,
+        }
+        if task in ("binary_classification", "multiclass_classification"):
+            training_summary["labels"] = [
+                _json_scalar(label) for label in best_evaluation.labels
+            ]
+            training_summary["positive_label"] = _json_scalar(
+                best_evaluation.positive_label
+            )
+        if task == "regression":
+            calibration_indices = (
+                plan.split.validation_indices
+                if plan.split.validation_indices
+                else plan.split.test_indices
+            )
+            X_calibration = frame.iloc[calibration_indices].loc[:, feature_cols]
+            y_calibration = frame[target].iloc[calibration_indices]
+            y_pred_test = np.asarray(best.pipeline.predict(X_calibration)).ravel()
+            residuals = np.abs(
+                np.asarray(y_calibration, dtype=float) - y_pred_test.astype(float)
+            )
+            training_summary["residual_interval"] = {
+                "coverage": 0.9,
+                "quantile": float(np.quantile(residuals, 0.9)),
+            }
+
         # Save the complete pipeline + manifest (no raw path is persisted — only
         # the controlled, sanitized artifact basename).
         artifact_path = package.save_artifact(
@@ -513,13 +587,7 @@ class ExperimentService:
             task=task,
             features=feature_cols,
             input_schema=dict(schema_json or {}),
-            training_summary={
-                "experiment_id": experiment.id,
-                "config_hash": config_hash,
-                "primary_metric": result.primary_metric,
-                "value": primary_value,
-                "seed": seed,
-            },
+            training_summary=training_summary,
             artifact_dir=self._artifact_root,
         )
         artifact_name = Path(artifact_path).name

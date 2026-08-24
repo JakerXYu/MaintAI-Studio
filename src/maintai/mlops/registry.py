@@ -166,6 +166,19 @@ class MLflowRegistry:
                 run_id, MODEL_ARTIFACT_PATH, tracking_uri=self.tracking_uri
             )
             self._get_or_create_registered_model(client, name)
+            existing = client.search_model_versions(
+                filter_string=f"name = '{name}'",
+                max_results=10000,
+            )
+            matching = [version for version in existing if version.run_id == run_id]
+            if matching:
+                version = max(matching, key=lambda item: int(str(item.version)))
+                client.set_registered_model_alias(
+                    name,
+                    CANDIDATE_ALIAS,
+                    str(version.version),
+                )
+                return self._to_version(version, alias=CANDIDATE_ALIAS)
             version = client.create_model_version(
                 name=name,
                 source=source,
