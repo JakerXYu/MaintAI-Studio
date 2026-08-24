@@ -1,7 +1,8 @@
 # API Contract — MaintAI Studio
 
-Prefix: `/api/v1` for business endpoints. Health and Phase B dataset endpoints
-are implemented; experiment/model/prediction endpoints remain planned P0 work.
+Prefix: `/api/v1` for business endpoints. Health, Phase B dataset, and Phase B
+experiment endpoints are implemented; model/prediction endpoints remain planned
+P0 work.
 
 ## Phase A (implemented)
 
@@ -49,12 +50,46 @@ Status codes:
 Mutations (`upload`, `profile`, `task-recommendation`) record audit events via
 the application service; the API layer does not duplicate audit writes.
 
+## Phase B Experiments (implemented, prefix `/api/v1`)
+
+```text
+POST /experiments               body {"dataset_id": str,
+                                       "model_names"?: [str],
+                                       "minimum_recall"?: float (0..1)}
+                                202 Experiment (queued snapshot; training runs via
+                                FastAPI BackgroundTasks in-process)
+GET  /experiments               ?limit=100&offset=0; 200 [ExperimentSummary]
+GET  /experiments/{id}          200 Experiment (full detail + model_runs)
+GET  /experiments/{id}/comparison
+                                200 {"experiment_id","task","primary_metric",
+                                     "best_model","ranking","candidates","notes",
+                                     "recommended_run_id","value"}
+```
+
+Status codes:
+
+- `202` experiment accepted and queued; the single in-process worker then
+  trains, and the caller polls `GET /experiments/{id}` for the final
+  `queued → running → succeeded | failed` state.
+- `404` dataset id or experiment id not found.
+- `409` dataset exists but is not ready (no target column or no trainable
+  classification/regression task).
+- `422` invalid/unknown request body fields, non-empty-string `model_names`
+  violation, or `minimum_recall` outside `[0, 1]`.
+- `500` internal error (storage failure, unexpected exception); a stable
+  `detail` is returned and absolute storage paths are never leaked.
+
+The request body is fixed: only `dataset_id`, `model_names`, and
+`minimum_recall` are accepted — never arbitrary run ids, shell commands, or
+filesystem paths. Background failures are persisted by the experiment service
+(``status: "failed"`` with a stable ``error_message``), so they are observable
+via `GET /experiments/{id}` rather than surfaced through the background task.
+Model/artifact URIs in responses are always `runs:/` references; raw filesystem
+paths are never returned.
+
 ## Planned P0
 
 ```text
-POST /experiments                     GET /experiments
-GET  /experiments/{id}                GET /experiments/{id}/comparison
-
 GET  /models                          GET /models/{id}
 POST /models/{id}/register            POST /models/{id}/promotion-request
 

@@ -10,6 +10,7 @@ random_seed: 42
 # Runtime uses Postgres. Tests override DATABASE_URL with SQLite.
 database_url: "postgresql+psycopg://maintai:maintai@postgres:5432/maintai"
 mlflow_tracking_uri: "http://mlflow:5000"
+mlflow_experiment_name: "maintai-p0"
 
 # mock = offline default; no network required
 llm_provider: "mock"
@@ -20,6 +21,10 @@ api_host: "0.0.0.0"
 api_port: 8000
 request_id_header: "X-Request-ID"
 max_upload_mb: 200
+
+# Controlled storage roots for the API container. Env vars and `.env` override.
+dataset_storage_path: "data/uploads"
+artifact_storage_path: "data/artifacts"
 
 # Deterministic data-intelligence rules. These are DEMO defaults, NOT any
 # industry standard. They mirror the Pydantic defaults in

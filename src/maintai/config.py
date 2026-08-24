@@ -93,7 +93,9 @@ class Settings(BaseSettings):
     # Business database. Runtime uses Postgres; tests override with SQLite.
     database_url: str = "sqlite:///./maintai.db"
     mlflow_tracking_uri: str = "http://localhost:5000"
+    mlflow_experiment_name: str = "maintai-p0"
     dataset_storage_path: Path = Path("data/uploads")
+    artifact_storage_path: Path = Path("data/artifacts")
 
     # LLM provider (mock default = offline).
     llm_provider: str = "mock"
