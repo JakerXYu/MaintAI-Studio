@@ -76,7 +76,7 @@ def _resolve_dir(artifact_dir, *, create: bool) -> Path:
     if create and not path.exists():
         path.mkdir(parents=True, exist_ok=True)
     if not path.is_dir():
-        raise ArtifactError(f"artifact directory {artifact_dir!r} is not a directory")
+        raise ArtifactError("artifact directory is not a directory")
     return path
 
 

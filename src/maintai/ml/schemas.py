@@ -99,6 +99,7 @@ class ModelEvaluation(BaseModel):
     labels: list[str | int | float | bool | None] = Field(default_factory=list)
     positive_label: str | int | float | bool | None = None
     inference_latency_ms: float | None = None
+    training_time_seconds: float | None = None
     error: str | None = None
     notes: list[str] = Field(default_factory=list)
 

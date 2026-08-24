@@ -9,6 +9,7 @@ models keep training; if nothing succeeds a ``TrainingError`` is raised.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -168,6 +169,7 @@ def train(
     errors: list[str] = []
 
     for name in names:
+        model_started = time.perf_counter()
         try:
             preprocessor = preprocess.build_preprocessor(
                 X_train, feature_cols, scale_numeric=scale_numeric
@@ -205,6 +207,7 @@ def train(
                 labels=[_json_scalar(label) for label in classes],
                 positive_label=_json_scalar(positive_label),
                 inference_latency_ms=latency_ms,
+                training_time_seconds=time.perf_counter() - model_started,
             )
             models[name] = TrainedModel(
                 name=name,

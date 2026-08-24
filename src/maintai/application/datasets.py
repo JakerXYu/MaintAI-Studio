@@ -14,6 +14,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -408,6 +409,27 @@ class DatasetService:
             "score": dataset.quality_score,
             "report": report,
         }
+
+    def load_frame(self, dataset_id: str) -> pd.DataFrame:
+        """Re-read stored bytes, re-apply ingest limits, and return the frame.
+
+        This is the only sanctioned way for other application services to obtain
+        a dataset's rows. It reuses the controlled storage read (no arbitrary
+        paths) and the configured ingest limits, and never exposes the resolved
+        storage path to the caller.
+        """
+        dataset = self._get_or_raise(dataset_id)
+        storage_key = dataset.file_path
+        data = self._read_storage(storage_key)
+        assert storage_key is not None  # _read_storage raises StorageError for None
+        return ingest_bytes(
+            data,
+            storage_key,
+            max_bytes=self._max_upload_bytes,
+            max_rows=self._max_rows,
+            max_columns=self._max_columns,
+            max_memory_bytes=self._max_memory_bytes,
+        ).frame
 
     def get(self, dataset_id: str) -> dict[str, Any]:
         """Return full dataset metadata including schema and profile."""

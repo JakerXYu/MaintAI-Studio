@@ -32,6 +32,16 @@ DATASET_STATUS_UPLOADED = "uploaded"
 DATASET_STATUS_PROFILED = "profiled"
 DATASET_STATUS_TASK_RECOMMENDED = "task_recommended"
 
+# Experiment lifecycle states (set by the experiment application service).
+EXPERIMENT_STATUS_QUEUED = "queued"
+EXPERIMENT_STATUS_RUNNING = "running"
+EXPERIMENT_STATUS_SUCCEEDED = "succeeded"
+EXPERIMENT_STATUS_FAILED = "failed"
+
+# ModelRun outcome states (set by the experiment application service).
+MODEL_RUN_STATUS_SUCCESS = "success"
+MODEL_RUN_STATUS_FAILED = "failed"
+
 
 class Dataset(Base):
     __tablename__ = "datasets"
@@ -72,7 +82,22 @@ class Experiment(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     task_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="created")
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=EXPERIMENT_STATUS_QUEUED
+    )
+    # Immutable training-plan snapshot plus run context (plan, minimum_recall,
+    # scale_numeric, n_jobs) serialized as portable JSON. The application layer
+    # also appends the deterministic result/comparison/explanation here after a
+    # run completes so every claim stays evidence-backed in one JSON column.
+    training_plan_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    recommended_model: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    recommended_run_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    config_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    primary_metric: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )
@@ -92,6 +117,12 @@ class ModelRun(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="created")
     primary_metric: Mapped[str | None] = mapped_column(String(64), nullable=True)
     primary_metric_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    metrics_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    confusion_matrix_json: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    artifact_uri: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    model_uri: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    feature_names_json: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    training_time_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False
     )
