@@ -204,6 +204,9 @@ class ModelRegistryService:
             deployed=False,
         )
         with self._session_factory.begin() as session:
+            for older in self._model_repository.list_by_name(name, session=session):
+                if older.alias == CANDIDATE_ALIAS:
+                    older.alias = None
             registered = self._model_repository.create(registered, session=session)
             self._audit.record(
                 actor_type="system",

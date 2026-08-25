@@ -281,6 +281,14 @@ class ExperimentService:
         resolved_models = list(model_names) if model_names else list(
             catalog.model_names_for_task(task)
         )
+        allowed_models = set(catalog.model_names_for_task(task))
+        invalid_models = sorted(set(resolved_models) - allowed_models)
+        if invalid_models:
+            raise ExperimentServiceError(
+                f"model(s) are not available for task {task!r}: {invalid_models}"
+            )
+        if len(resolved_models) != len(set(resolved_models)):
+            raise ExperimentServiceError("model_names must not contain duplicates")
 
         frame = self._dataset_service.load_frame(dataset_id)
         split_result = split_data(

@@ -381,7 +381,7 @@ def test_invalid_records_422(api_client):
     r = api_client.post("/api/v1/predict", json={"model_id": model_id, "records": []})
     assert r.status_code == 422
 
-    # batch endpoint caps at 1000 records
+    # batch endpoint caps resource-heavy local explanations at 100 records
     r = api_client.post(
         "/api/v1/predict/batch",
         json={"model_id": model_id, "records": [_record()] * 1001},

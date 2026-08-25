@@ -15,6 +15,7 @@ only ``runs:/`` MLflow URIs and never raw filesystem paths.
 
 from __future__ import annotations
 
+import threading
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
@@ -58,7 +59,7 @@ class ExperimentCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     dataset_id: str = Field(min_length=1)
-    model_names: list[str] | None = None
+    model_names: list[str] | None = Field(default=None, max_length=3)
     minimum_recall: float | None = Field(default=None, ge=0.0, le=1.0)
 
     @field_validator("model_names")
@@ -142,6 +143,21 @@ class ComparisonResponse(BaseModel):
     value: float | None = None
 
 
+class SingleTrainingCoordinator:
+    """Serialize CPU-heavy experiment runs inside one API process.
+
+    This is intentionally not a durable queue. It enforces the documented P0
+    capacity of one active training run without introducing Celery/Redis.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+
+    def run(self, service: ExperimentService, experiment_id: str) -> dict[str, Any]:
+        with self._lock:
+            return service.run(experiment_id)
+
+
 def build_experiment_service(
     session_factory: sessionmaker[Session],
     settings: Settings,
@@ -168,9 +184,13 @@ def build_experiment_service(
     )
 
 
-def build_experiments_router(service: ExperimentService) -> APIRouter:
+def build_experiments_router(
+    service: ExperimentService,
+    coordinator: SingleTrainingCoordinator | None = None,
+) -> APIRouter:
     """Build the experiment router bound to a single ``ExperimentService``."""
     router = APIRouter(prefix="/experiments", tags=["experiments"])
+    coordinator = coordinator or SingleTrainingCoordinator()
 
     @router.post(
         "",
@@ -198,7 +218,7 @@ def build_experiments_router(service: ExperimentService) -> APIRouter:
             ) from None
         except DataIngestError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-        background_tasks.add_task(service.run, snapshot["id"])
+        background_tasks.add_task(coordinator.run, service, snapshot["id"])
         return snapshot
 
     @router.get(

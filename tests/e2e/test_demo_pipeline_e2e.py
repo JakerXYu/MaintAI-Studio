@@ -73,6 +73,8 @@ def test_generator_is_byte_identical(tmp_path):
     bytes2 = out2.read_bytes()
     assert bytes1 == bytes2
     assert summary1["sha256"] == hashlib.sha256(bytes1).hexdigest()
+    committed = REPO_ROOT / "data" / "synthetic" / "maintai_ai4i_style_demo.csv"
+    assert committed.read_bytes() == bytes1
 
     header = bytes1.decode("utf-8").splitlines()[0].split(",")
     assert header == EXPECTED_COLUMNS
@@ -113,7 +115,8 @@ def test_demo_pipeline_closes_full_loop():
 
     # prediction
     assert summary["prediction"]["count"] == 1
-    assert "prediction" in summary["prediction"]
+    assert summary["prediction"]["prediction"] == 1
+    assert summary["prediction"]["positive_probability"] >= 0.5
     assert summary["prediction"]["explanation_method"]
 
     # 3 copilot calls with grounded evidence
@@ -124,5 +127,5 @@ def test_demo_pipeline_closes_full_loop():
     ]
     assert len(summary["copilot"]["evidence"]) == 3
     assert all(len(evidence) == 1 for evidence in summary["copilot"]["evidence"])
-    assert summary["minimum_recall"] == 0.0
+    assert summary["minimum_recall"] == 0.8
     assert summary["minimum_recall_note"]

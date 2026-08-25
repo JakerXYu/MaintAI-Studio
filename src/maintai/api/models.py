@@ -142,9 +142,9 @@ class PredictSingleRequest(PredictRequest):
 
 
 class PredictBatchRequest(PredictRequest):
-    """Batch inference accepts between 1 and 1000 records."""
+    """Batch inference accepts between 1 and 100 records."""
 
-    records: list[dict[str, Any]] = Field(min_length=1, max_length=1000)
+    records: list[dict[str, Any]] = Field(min_length=1, max_length=100)
 
 
 class PredictionResponse(BaseModel):

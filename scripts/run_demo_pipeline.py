@@ -66,12 +66,11 @@ TARGET_COLUMN = "machine_failure"
 ASSET_ID_COLUMN = "machine_id"
 TIMESTAMP_COLUMN = "timestamp"
 REGISTERED_NAME = "machine-failure-demo"
-MINIMUM_RECALL = 0.0
+MINIMUM_RECALL = 0.80
 
 MINIMUM_RECALL_NOTE = (
-    "minimum_recall is set to 0.0 for this demo so the deterministic recommendation "
-    "always produces a model on the small synthetic dataset; the P0 production default "
-    "is 0.80 (see configs/default.yaml)."
+    "minimum_recall uses the standard P0 demo default of 0.80; the synthetic "
+    "failure signal is fixed and reproducible across each asset holdout."
 )
 
 
@@ -177,11 +176,11 @@ def run_demo() -> dict:
         # 6. Predict on a single record (audited).
         record = {
             "type": "L",
-            "air_temperature": 300.0,
-            "process_temperature": 310.0,
-            "rotational_speed": 1500.0,
-            "torque": 40.0,
-            "tool_wear": 80.0,
+            "air_temperature": 305.0,
+            "process_temperature": 317.0,
+            "rotational_speed": 1050.0,
+            "torque": 92.0,
+            "tool_wear": 245.0,
         }
         prediction = prediction_service.predict(registered["id"], [record])
 

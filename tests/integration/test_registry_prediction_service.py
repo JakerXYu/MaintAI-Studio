@@ -359,6 +359,8 @@ def test_single_active_demo_version(
     reg1 = registry_service.register(run1["id"], name)
     reg2 = registry_service.register(run2["id"], name)
     assert reg1["version"] != reg2["version"]
+    assert registry_service.get(reg1["id"])["alias"] is None
+    assert registry_service.get(reg2["id"])["alias"] == "candidate"
 
     registry_service.deploy_demo(reg1["id"])
     registry_service.deploy_demo(reg2["id"])

@@ -47,7 +47,6 @@ COLUMNS: tuple[str, ...] = (
 
 _N_MACHINES = 20
 _RECORDS_PER_MACHINE = 20
-_TARGET_FAILURE_RATE = 0.20
 
 _NUMERIC_COLUMNS: tuple[str, ...] = (
     "air_temperature",
@@ -96,6 +95,11 @@ def generate_dataframe(seed: int = SEED) -> pd.DataFrame:
         for h in hour_offsets
     ]
 
+    # Every asset has four failures, including one in the latest holdout window.
+    # Sensor shifts make the failure label learnable without copying real rows.
+    asset_step = np.tile(np.arange(_RECORDS_PER_MACHINE), _N_MACHINES)
+    machine_failure = np.isin(asset_step, [3, 8, 13, 18]).astype(int)
+
     # Sensors in roughly AI4I ranges (K / K / rpm / Nm / min).
     air_temperature = 299.0 + 2.0 * rng.normal(0.0, 1.0, n)
     process_temperature = air_temperature + 9.0 + 1.5 * rng.normal(0.0, 1.0, n)
@@ -108,25 +112,17 @@ def generate_dataframe(seed: int = SEED) -> pd.DataFrame:
         250.0,
     )
 
+    air_temperature += machine_failure * 4.0
+    process_temperature += machine_failure * 6.0
+    rotational_speed = np.clip(rotational_speed - machine_failure * 450.0, 900.0, 2900.0)
+    torque = np.clip(torque + machine_failure * 30.0, 5.0, 100.0)
+    tool_wear = np.clip(tool_wear + machine_failure * 45.0, 0.0, 280.0)
+
     # Deterministic anomalies.
     rotational_speed = rotational_speed.copy()
     torque = torque.copy()
     rotational_speed[machine == _FLATLINE_ASSET] = _FLATLINE_VALUE
     torque[np.flatnonzero(machine == _OUTLIER_ASSET)[:2]] = _OUTLIER_VALUE
-
-    # Failure signal: a learnable health-risk score over sensor deviations plus
-    # noise, labelled as the top ~20% so the signal is strong but spread evenly
-    # over time (which keeps the per-asset chronological holdout balanced).
-    risk = (
-        0.12 * (air_temperature - 299.0) / 3.0
-        + 0.12 * (process_temperature - 309.0) / 3.0
-        + 0.25 * np.abs(rotational_speed - 1500.0) / 400.0
-        + 0.25 * (torque - 40.0) / 30.0
-        + 0.10 * (tool_wear / 200.0)
-        + rng.normal(0.0, 0.25, n)
-    )
-    threshold = float(np.quantile(risk, 1.0 - _TARGET_FAILURE_RATE))
-    machine_failure = (risk >= threshold).astype(int)
 
     frame = pd.DataFrame(
         {

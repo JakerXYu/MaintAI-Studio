@@ -1,12 +1,12 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.4-alpine
     environment:
       POSTGRES_USER: maintai
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-maintai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env and set POSTGRES_PASSWORD}
       POSTGRES_DB: maintai
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/initdb:/docker-entrypoint-initdb.d:ro
@@ -22,7 +22,7 @@ services:
       - "mlflow"
       - "server"
       - "--backend-store-uri"
-      - "postgresql+psycopg2://maintai:${POSTGRES_PASSWORD:-maintai}@postgres:5432/mlflow"
+      - "postgresql+psycopg2://maintai:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/mlflow"
       - "--host"
       - "0.0.0.0"
       - "--port"
@@ -33,7 +33,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     volumes:
       - mlflow_artifacts:/mlflow/artifacts
     healthcheck:
@@ -46,7 +46,7 @@ services:
     build: .
     command: ["python", "-m", "maintai.db.migrate"]
     environment:
-      DATABASE_URL: postgresql+psycopg://maintai:${POSTGRES_PASSWORD:-maintai}@postgres:5432/maintai
+      DATABASE_URL: postgresql+psycopg://maintai:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/maintai
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,7 +54,7 @@ services:
   api:
     build: .
     environment:
-      DATABASE_URL: postgresql+psycopg://maintai:${POSTGRES_PASSWORD:-maintai}@postgres:5432/maintai
+      DATABASE_URL: postgresql+psycopg://maintai:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/maintai
       MLFLOW_TRACKING_URI: http://mlflow:5000
       MLFLOW_EXPERIMENT_NAME: ${MLFLOW_EXPERIMENT_NAME:-maintai-p0}
       DATASET_STORAGE_PATH: /app/data/uploads
@@ -69,7 +69,7 @@ services:
       mlflow:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - dataset_storage:/app/data/uploads
       - model_artifacts:/app/artifacts
@@ -88,7 +88,7 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "8501:8501"
+      - "127.0.0.1:8501:8501"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
       interval: 15s

@@ -38,7 +38,7 @@ from maintai.ml.explain import ExplanationError, local_explanation
 from maintai.ml.package import ArtifactError, ArtifactManifest
 from maintai.ml.schemas import CLASSIFICATION_TASKS
 
-_MAX_RECORDS = 1000
+_MAX_RECORDS = 100
 
 
 class PredictionServiceError(Exception):
