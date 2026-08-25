@@ -20,7 +20,8 @@ Engineer ──► Streamlit UI (HTTP only) ──► FastAPI API ──► Data
 - **FastAPI** owns validation, orchestration, and persistence boundaries.
 - **Postgres** stores `datasets`, `experiments`, `model_runs`,
   `registered_models`, `audit_events`. **MLflow** stores experiment runs,
-  params/metrics/artifacts, and the model registry (independent store).
+  training artifacts, and the registry catalog. The API artifact volume stores
+  the manifest-rich trusted serving package cross-linked to its `ModelRun`.
 - **SQLite** is a test-only double (see below).
 
 ## Key decisions / adjustments vs. the long spec
@@ -29,15 +30,18 @@ Engineer ──► Streamlit UI (HTTP only) ──► FastAPI API ──► Data
    SQLite database (same SQLAlchemy models). Runtime always uses Postgres.
    SQLAlchemy models use portable column types only.
 2. **P0 single in-process training worker.** No Celery/Redis/Kafka. Long-running
-   training in P0 runs in-process (FastAPI `BackgroundTasks` / a single worker),
-   documented as a conscious simplification.
-3. **Schema bootstrap via `create_all`.** Phase A uses
-   `Base.metadata.create_all` (no Alembic). Alembic is introduced only if/when
-   migrations are actually needed before P0 freeze.
+   training uses FastAPI `BackgroundTasks` behind a process-wide coordinator
+   lock, so at most one experiment trains at a time. The queue is not durable.
+3. **Schema bootstrap via `create_all`.** The P0 schema is created with
+   `Base.metadata.create_all` (no Alembic). Alembic is deferred; `create_all`
+   does not migrate an existing database.
 4. **mock LLM default.** `LLM_PROVIDER=mock`; no network needed offline. The
    `openai-compatible` path is env-configured, never hard-coded.
 5. **UI/API boundary.** Streamlit app reads `MAINTAI_API_URL` (default
    `http://localhost:8000`) and does not assume a shared process.
+6. **Demo deploy is not production.** `demo_deployed` is the only deployment
+   state in P0. There is no `champion` alias or `Production` stage; those
+   transitions require human approval and belong to P1.
 
 ## Runtime topology (docker-compose)
 
@@ -49,19 +53,26 @@ Engineer ──► Streamlit UI (HTTP only) ──► FastAPI API ──► Data
 | `api` | FastAPI (uvicorn) | Postgres |
 | `ui` | Streamlit health app | via API |
 
-## Package layout (Phase A)
+## Package layout (P0, implemented)
 
 ```text
 src/maintai/
   config.py          pydantic-settings (env + configs/default.yaml)
-  db/                Base, session/engine, ORM models, migrate
+  db/                Base, session/engine, ORM models, migrate, repositories
   audit/             audit repository + service
-  api/               app factory, request-id middleware, health routes
-  ui/                Streamlit health app
+  data/              ingest, schema, profile, quality, leakage, split, schemas
+  tasks/             deterministic task inference + schemas
+  ml/                catalog, preprocess, train, evaluate, recommend, explain,
+                     confidence, package, schemas
+  mlops/             MLflow tracker + registry gateways
+  agent/             state, graph, tools, provider, service (LangGraph copilot)
+  application/       dataset/experiment/model/prediction services (orchestration)
+  api/               app factory, request-id middleware, routers
+  ui/                Streamlit control-room app (HTTP-only client)
 ```
 
-Future phases add `data/`, `tasks/`, `ml/`, `agent/`, `monitoring/`,
-`approvals/`, `cmms/` per module ownership (see `AGENTS.md`).
+P1 will add `monitoring/`, `approvals/`, `cmms/` per module ownership (see
+`AGENTS.md`) — not started.
 
 ## Health model
 

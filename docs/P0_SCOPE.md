@@ -23,7 +23,7 @@ frozen before any P1 work. Full acceptance criteria live in the parent spec
 
 ## MLOps
 - Every run logged to MLflow (params/metrics/artifacts/tags).
-- Model registered to MLflow Registry (`candidate`/`champion` aliases); preprocessing saved with the artifact.
+- Model registered to MLflow Registry as `candidate`; preprocessing saved with the artifact. `champion` is P1 approval scope.
 - FastAPI inference: `GET /api/v1/models`, `GET /api/v1/models/{id}`, `POST /api/v1/predict`, `POST /api/v1/predict/batch`.
 
 ## Agent (Phase E)
@@ -36,5 +36,20 @@ frozen before any P1 work. Full acceptance criteria live in the parent spec
 - `pytest` green; smoke test; fixed seed; AI4I (or synthetic) dataset; README one-command start; clean-environment reproducibility.
 
 ## Status
-Phase A (foundation) is in progress. P0 data/ML/agent/UI are **not yet
-implemented**; do not claim otherwise.
+
+P0 is **fully implemented and locally tested**; the P0 Freeze review is in
+progress (not yet passed). The Docker Compose gate is pending because Docker is
+not installed on the machine that produced these docs.
+
+| Section | Implemented | Notes |
+|---|---|---|
+| Data (ingest/profile/quality/leakage/split) | Yes | Unit + integration tested |
+| Tasks / ML (train/evaluate/recommend/explain) | Yes | LR/RF/XGBoost + Ridge/RF/XGBoost; SHAP + permutation fallback |
+| MLOps (MLflow/registry/predict/audit) | Yes | `candidate` + `demo_deployed` only; no champion/Production |
+| Agent (LangGraph copilot) | Yes | Read-only tool allowlist; mock + openai-compatible |
+| UI (8 pages) | Yes | Streamlit HTTP-only control room |
+| QA (pytest / demo / smoke) | Yes (local) | Ruff clean; 385 tests pass; local E2E pass |
+| Docker Compose runtime | Pending | Config reviewed; not runtime-verified (no Docker locally) |
+
+Acceptance criteria live in the parent spec (§14); this is the condensed scope.
+Do not claim a Freeze pass: see `P0_REVIEW.md` for the conditional verdict.

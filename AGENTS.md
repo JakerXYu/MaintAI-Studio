@@ -32,8 +32,10 @@ in the parent folder (do NOT modify that file or anything outside this repo).
 - **P0 Freeze** = tests + demo + docs + UI polish pass, no new features.
 - Only after Freeze start P1 (anomaly/drift/cost/approval/champion-challenger/
   retraining/feedback/mock CMMS).
-- Current phase: **Phase A — Foundation**. Do not implement P0 ML/data/agent
-  logic yet.
+- Current phase: **P0 Freeze review**. The P0 chain is fully implemented and
+  locally tested. Only docs/tests/demo/UI polish are allowed now — no new
+  features, and P1 remains **forbidden** until the Freeze closes (Compose gate
+  still pending; see `P0_REVIEW.md`).
 
 ## 4. Module ownership (do not cross-edit without coordination)
 
