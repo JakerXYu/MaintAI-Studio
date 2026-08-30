@@ -26,6 +26,7 @@ dependencies = [
     "numpy>=1.26",
     "pyarrow>=14.0",
     "scikit-learn>=1.4",
+    "scipy>=1.11",
     "shap>=0.46,<1",
     "xgboost>=2.0,<3",
     "langgraph>=0.2,<1",

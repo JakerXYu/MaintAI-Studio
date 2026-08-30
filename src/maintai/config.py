@@ -75,6 +75,39 @@ class MLRulesSettings(BaseModel):
     minimum_recall: float = 0.80
 
 
+class AnomalySettings(BaseModel):
+    seed: int = 42
+    contamination: float | str = "auto"
+    threshold: float = 3.0
+    top_k_features: int = 3
+    n_estimators: int = 100
+
+
+class DriftSettings(BaseModel):
+    psi_medium: float = 0.10
+    psi_high: float = 0.25
+    ks_medium: float = 0.10
+    ks_high: float = 0.20
+    shift_medium: float = 0.50
+    shift_high: float = 1.00
+    missingness_medium: float = 0.05
+    missingness_high: float = 0.15
+    n_bins: int = 10
+    epsilon: float = 1e-6
+
+
+class RecommendSettings(BaseModel):
+    performance_drop_threshold: float = 0.05
+    anomaly_rate_jump_threshold: float = 0.10
+    schedule_days_threshold: int = 30
+
+
+class MonitoringSettings(BaseModel):
+    anomaly: AnomalySettings = AnomalySettings()
+    drift: DriftSettings = DriftSettings()
+    recommend: RecommendSettings = RecommendSettings()
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=str(_find_env_file()),
@@ -110,6 +143,7 @@ class Settings(BaseSettings):
     data: DataRulesSettings = DataRulesSettings()
     split: SplitSettings = SplitSettings()
     ml: MLRulesSettings = MLRulesSettings()
+    monitoring: MonitoringSettings = MonitoringSettings()
 
     @classmethod
     def settings_customise_sources(

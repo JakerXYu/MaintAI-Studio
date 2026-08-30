@@ -56,3 +56,29 @@ ml:
   n_jobs: 1
   scale_numeric: true
   minimum_recall: 0.80
+
+# Deterministic P1 monitoring core defaults. These are DEMO defaults, NOT any
+# industry standard. They mirror the Pydantic defaults in
+# src/maintai/monitoring/{anomaly,drift,recommend}.py.
+monitoring:
+  anomaly:
+    seed: 42
+    contamination: "auto"
+    threshold: 3.0
+    top_k_features: 3
+    n_estimators: 100
+  drift:
+    psi_medium: 0.10
+    psi_high: 0.25
+    ks_medium: 0.10
+    ks_high: 0.20
+    shift_medium: 0.50
+    shift_high: 1.00
+    missingness_medium: 0.05
+    missingness_high: 0.15
+    n_bins: 10
+    epsilon: 0.000001
+  recommend:
+    performance_drop_threshold: 0.05
+    anomaly_rate_jump_threshold: 0.10
+    schedule_days_threshold: 30
