@@ -140,6 +140,10 @@ class Settings(BaseSettings):
     api_port: int = 8000
     request_id_header: str = "X-Request-ID"
     max_upload_mb: int = 200
+
+    # P1 human-approval gate. Environment-only: never set a real value in YAML.
+    # When unset, the approval decision endpoints return 503 (decisions disabled).
+    approval_api_token: SecretStr | None = None
     data: DataRulesSettings = DataRulesSettings()
     split: SplitSettings = SplitSettings()
     ml: MLRulesSettings = MLRulesSettings()
@@ -163,7 +167,13 @@ class Settings(BaseSettings):
             file_secret_settings,
         )
 
-    @field_validator("llm_api_key", "llm_base_url", "llm_model", mode="before")
+    @field_validator(
+        "llm_api_key",
+        "llm_base_url",
+        "llm_model",
+        "approval_api_token",
+        mode="before",
+    )
     @classmethod
     def _empty_string_to_none(cls, value: object) -> object:
         if isinstance(value, str) and value.strip() == "":

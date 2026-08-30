@@ -17,6 +17,10 @@ llm_provider: "mock"
 llm_base_url: ""
 llm_model: ""
 
+# P1 human-approval bearer token is environment-only (APPROVAL_API_TOKEN, see
+# .env.example). It is deliberately absent from this YAML so a real token can
+# never be committed; when unset, approval decision endpoints return 503.
+
 api_host: "0.0.0.0"
 api_port: 8000
 request_id_header: "X-Request-ID"

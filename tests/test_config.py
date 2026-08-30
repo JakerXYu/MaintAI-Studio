@@ -28,6 +28,16 @@ def test_llm_key_is_masked():
     assert "sk-test-placeholder" not in repr(settings)
 
 
+def test_approval_token_is_secret_and_masked():
+    settings = Settings(approval_api_token="change-me-demo", _env_file=None)
+    assert isinstance(settings.approval_api_token, SecretStr)
+    assert "change-me-demo" not in repr(settings)
+
+
+def test_empty_approval_token_normalizes_to_none():
+    assert Settings(approval_api_token="", _env_file=None).approval_api_token is None
+
+
 def test_get_settings_is_cached():
     assert get_settings() is get_settings()
 

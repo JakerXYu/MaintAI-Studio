@@ -18,6 +18,7 @@ from sqlalchemy.orm import sessionmaker
 
 from maintai import __version__
 from maintai.agent.service import CopilotService
+from maintai.api.approvals import build_approval_service, build_approvals_router
 from maintai.api.copilot import build_copilot_router, build_copilot_service
 from maintai.api.datasets import build_dataset_service, build_datasets_router
 from maintai.api.experiments import build_experiment_service, build_experiments_router
@@ -31,6 +32,7 @@ from maintai.application.datasets import DatasetService
 from maintai.application.experiments import ExperimentService
 from maintai.application.models import ModelRegistryService
 from maintai.application.predictions import PredictionService
+from maintai.approvals import ApprovalService
 from maintai.config import Settings, get_settings
 from maintai.db.session import get_session_factory
 
@@ -51,6 +53,8 @@ def create_app(
     model_registry_service: ModelRegistryService | None = None,
     prediction_service: PredictionService | None = None,
     copilot_service: CopilotService | None = None,
+    approval_service: ApprovalService | None = None,
+    approval_token: str | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     session_factory = session_factory or get_session_factory()
@@ -73,6 +77,13 @@ def create_app(
             model_registry_service,
             prediction_service,
         )
+    if approval_service is None:
+        approval_service = build_approval_service(session_factory)
+    effective_approval_token = approval_token
+    if effective_approval_token is None and settings.approval_api_token is not None:
+        effective_approval_token = settings.approval_api_token.get_secret_value()
+    if effective_approval_token is not None and not effective_approval_token:
+        effective_approval_token = None
 
     app = FastAPI(title=settings.project_name, version=__version__)
     app.include_router(build_datasets_router(dataset_service), prefix="/api/v1")
@@ -80,6 +91,10 @@ def create_app(
     app.include_router(build_models_router(model_registry_service), prefix="/api/v1")
     app.include_router(build_predict_router(prediction_service), prefix="/api/v1")
     app.include_router(build_copilot_router(copilot_service), prefix="/api/v1")
+    app.include_router(
+        build_approvals_router(approval_service, token=effective_approval_token),
+        prefix="/api/v1",
+    )
 
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):

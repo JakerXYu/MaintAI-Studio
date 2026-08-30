@@ -142,6 +142,60 @@ Inference runs only against ``demo_deployed`` models. Each record is persisted
 as an immutable ``PredictionEvent`` with a content hash (never the raw input),
 and a single request-level audit event stores only counts and input hashes.
 
+## P1 Approvals (implemented, prefix `/api/v1`)
+
+```text
+POST /approvals               propose a gated action
+        body {"action_type": str,
+              "entity_type": str, "entity_id": str,
+              "requested_by_type": "agent"|"user"|"system",
+              "requested_by_id"?: str,
+              "proposed_payload"?: object}
+        201 Approval (full detail, status "pending")
+GET  /approvals               ?action_type&entity_type&entity_id&status&
+                              requested_by_type&limit=100&offset=0
+                              200 [ApprovalSummary]  (no proposed/decision payloads)
+GET  /approvals/{id}          bearer token required; 200 Approval (full detail)
+POST /approvals/{id}/approve  body {"expected_version": int (>=1),
+                              "reason"?: str, "payload"?: object}
+                              200 Approval (status "approved")
+POST /approvals/{id}/reject   body same; "reason" required
+                              200 Approval (status "rejected")
+POST /approvals/{id}/modify   body same; "reason" and "payload" required
+                              200 Approval (status "modified")
+```
+
+Status codes:
+
+- `201` approval proposed (``pending``, ``version=1``); `200` reads and decisions.
+- `401` detail read or decision without a valid ``Authorization: Bearer <token>``.
+- `404` approval id not found.
+- `409` duplicate pending proposal, already-decided approval, or a stale
+  ``expected_version`` (compare-and-swap conflict).
+- `422` invalid/unknown request body fields, invalid ``action_type`` or
+  ``requested_by_type``, missing/non-empty ``reason`` (``reject``/``modify``) or
+  ``payload`` (``modify``), or a missing/empty ``X-Human-Actor-ID`` header.
+- `500` unexpected application error; a stable `detail` is returned.
+- `503` detail/decision endpoints when ``APPROVAL_API_TOKEN`` is not configured.
+
+Human decisions are gated by **both** of:
+
+1. `Authorization: Bearer <token>` — compared in constant time against the
+   environment-only `APPROVAL_API_TOKEN`. Unset token → `503`; missing or wrong
+   token → `401`.
+2. `X-Human-Actor-ID` — a non-empty human identifier (missing/empty → `422`).
+   The service always records ``human_actor_type="user"``; the API rejects any
+   client-supplied actor-type override, so an agent cannot impersonate a human.
+
+> **Security note (not enterprise identity):** the shared bearer token plus a
+> self-asserted ``X-Human-Actor-ID`` is a **local demo gate only**. It does not
+> authenticate an individual or establish RBAC. Production deployments must
+> front these routes with SSO and role-based access control; never ship the demo
+> ``change-me-demo-approval-token`` to a shared or internet-facing environment.
+
+The token is never logged, echoed in a response, or written to the audit trail,
+and audit events never contain proposed/decision payloads.
+
 ## Planned P0
 
 ```text
@@ -155,11 +209,10 @@ POST /copilot/chat
 POST /monitoring/batches              GET /monitoring/drift/{batch_id}
 GET  /monitoring/anomalies/{batch_id} POST /monitoring/retraining-recommendation
 
-GET  /approvals                       POST /approvals/{id}/approve
-POST /approvals/{id}/reject           POST /approvals/{id}/modify
-
 POST /cmms/work-orders/draft          GET /cmms/work-orders
 ```
+
+(Approvals are implemented — see the "P1 Approvals" section above.)
 
 ## Conventions
 - JSON bodies; Pydantic v2 validation; 4xx with readable `detail`.
