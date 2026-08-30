@@ -11,7 +11,18 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from maintai.db.base import Base
@@ -45,6 +56,23 @@ MODEL_RUN_STATUS_FAILED = "failed"
 # RegisteredModel deployment states (set by the registry application service).
 DEPLOYMENT_STATUS_CANDIDATE = "candidate"
 DEPLOYMENT_STATUS_DEMO_DEPLOYED = "demo_deployed"
+
+# Approval action types (the operational actions gated behind human approval).
+APPROVAL_ACTION_MODEL_PROMOTION = "model_promotion"
+APPROVAL_ACTION_RETRAINING_DEPLOYMENT = "retraining_deployment"
+APPROVAL_ACTION_MAINTENANCE_ACTION = "maintenance_action"
+APPROVAL_ACTION_CMMS_WORK_ORDER = "cmms_work_order"
+
+# Approval lifecycle states (pending -> approved/rejected/modified).
+APPROVAL_STATUS_PENDING = "pending"
+APPROVAL_STATUS_APPROVED = "approved"
+APPROVAL_STATUS_REJECTED = "rejected"
+APPROVAL_STATUS_MODIFIED = "modified"
+
+# Approval requester types (who submitted the request).
+APPROVAL_REQUESTER_AGENT = "agent"
+APPROVAL_REQUESTER_USER = "user"
+APPROVAL_REQUESTER_SYSTEM = "system"
 
 
 class Dataset(Base):
@@ -205,4 +233,64 @@ class AuditEvent(Base):
     payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, nullable=False, index=True
+    )
+
+
+class ApprovalRequest(Base):
+    """A human-in-the-loop approval request gating an operational action.
+
+    The approval state machine is ``pending -> approved|rejected|modified`` and
+    is advanced only by a human actor via a compare-and-swap transition guarded
+    by ``id``/``version``/``status=pending``. Recording an approval never
+    executes the underlying action (promotion, retraining deployment,
+    maintenance action, CMMS work-order); execution is handled later by the owning
+    P1 module once this row reaches a terminal state.
+    """
+
+    __tablename__ = "approval_requests"
+    __table_args__ = (
+        CheckConstraint(
+            "action_type IN ('model_promotion', 'retraining_deployment', "
+            "'maintenance_action', 'cmms_work_order')",
+            name="ck_approval_requests_action_type",
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'approved', 'rejected', 'modified')",
+            name="ck_approval_requests_status",
+        ),
+        CheckConstraint(
+            "requested_by_type IN ('agent', 'user', 'system')",
+            name="ck_approval_requests_requested_by_type",
+        ),
+        CheckConstraint("version >= 1", name="ck_approval_requests_version"),
+        Index(
+            "uq_approval_requests_pending_action_entity",
+            "action_type",
+            "entity_type",
+            "entity_id",
+            unique=True,
+            sqlite_where=text("status = 'pending'"),
+            postgresql_where=text("status = 'pending'"),
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    action_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=APPROVAL_STATUS_PENDING, index=True
+    )
+    proposed_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    decision_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    requested_by_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    requested_by_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    decided_by: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    reason: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False, index=True
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
