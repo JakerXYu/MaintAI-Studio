@@ -32,10 +32,10 @@ in the parent folder (do NOT modify that file or anything outside this repo).
 - **P0 Freeze** = tests + demo + docs + UI polish pass, no new features.
 - Only after Freeze start P1 (anomaly/drift/cost/approval/champion-challenger/
   retraining/feedback/mock CMMS).
-- Current phase: **P0 Freeze review**. The P0 chain is fully implemented and
-  locally tested. Only docs/tests/demo/UI polish are allowed now — no new
-  features, and P1 remains **forbidden** until the Freeze closes (Compose gate
-  still pending; see `P0_REVIEW.md`).
+- **P0 Freeze passed on 2026-08-30.** Local gates, locked Compose build,
+  Postgres/HTTP-MLflow full workflow, UI smoke, and restart persistence passed.
+- Current phase: **P1 authorized, not yet implemented**. Preserve all P0
+  contracts and tests; implement P1 in the order in `docs/P1_SCOPE.md`.
 
 ## 4. Module ownership (do not cross-edit without coordination)
 

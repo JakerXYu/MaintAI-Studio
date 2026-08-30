@@ -26,11 +26,10 @@ read-only tools, and explains the results — it never executes ML or writes the
 database/registry directly. A Streamlit control-room UI drives the whole loop
 through HTTP.
 
-**Status.** The full P0 chain is implemented and locally tested. The P0 Freeze
-review is **in progress**, not passed: local gates (ruff, pytest, demo script)
-pass on a Python 3.11 venv, but the Docker Compose runtime gate is still
-pending because Docker is not installed on the machine that produced these
-docs. See [`P0_REVIEW.md`](P0_REVIEW.md).
+**Status.** P0 Freeze **passed on 2026-08-30**. Local gates, a locked Docker
+Compose build, five-service health, the full HTTP workflow on Postgres +
+HTTP MLflow, UI smoke, and API/MLflow restart persistence all passed. P1 is
+authorized but not yet implemented. See [`P0_REVIEW.md`](P0_REVIEW.md).
 
 ## ABB Theme 1 mapping
 
@@ -108,13 +107,13 @@ Full details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | MLOps | MLflow tracking, candidate registration, `demo-deploy`, FastAPI predict (single/batch), audit log | Champion/challenger, drift, retraining, approval |
 | Agent | LangGraph copilot, read-only tool allowlist, mock + openai-compatible providers, action refusal/proposal | Action tools (drift, cost, CMMS, approval) |
 | UI | Home, Dataset & Health, Task & Plan, Experiments, Explainability, Registry & Deploy, Predict, Copilot | Monitoring, Approvals, CMMS pages |
-| Ops | Docker Compose stack (runtime-unverified locally), single in-process worker, `create_all` bootstrap | Alembic, replay/monitoring |
+| Ops | Runtime-verified Docker Compose stack, single in-process worker, `create_all` bootstrap | Alembic, replay/monitoring |
 
-P1 is **not started** and must not begin until the P0 Freeze closes.
+P1 is **not yet implemented**; P0 Freeze is closed and P1 work is authorized.
 
 ## Quick start
 
-### Docker Compose (unverified on this machine)
+### Docker Compose
 
 ```bash
 cd Project_ABB
@@ -126,11 +125,9 @@ Services: `postgres` (init creates `maintai` + `mlflow` DBs), `mlflow`, a
 one-shot `migrate` (`Base.metadata.create_all`), `api`, and `ui`, with
 healthchecks and named volumes.
 
-> **Status:** this Compose path has **not** been runtime-validated on the
-> machine that produced these docs because Docker is not installed locally.
-> The `docker-compose.yml`, `Dockerfile`, and init script are present and
-> reviewed but pending a real run (see `P0_REVIEW.md` and
-> [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md)).
+> **Verified 2026-08-30:** locked build, migrations, five-service health,
+> Postgres + HTTP MLflow workflow, UI smoke, registry/inference, and restart
+> persistence passed. Use `python scripts/http_e2e.py` for the live full-loop gate.
 
 ### Local (Python 3.11 venv)
 
@@ -295,6 +292,7 @@ and [`docs/SECURITY_AND_SAFETY.md`](docs/SECURITY_AND_SAFETY.md).
 ```powershell
 ruff check .      # lint
 pytest -q         # unit + integration + e2e (SQLite double)
+python scripts/http_e2e.py   # full loop against a running Compose stack
 ```
 
 The final local P0 review run on the Python 3.11 venv collected and passed
@@ -304,8 +302,6 @@ concurrency guard. See
 
 ## Known limitations
 
-- Docker Compose has not been runtime-validated on this machine (Docker not
-  installed); only the local Python 3.11 venv path is verified.
 - Schema bootstrap uses `create_all`; Alembic is not yet introduced, so
   `create_all` does not migrate an existing database.
 - Training runs as a single in-process worker (no Celery/Redis/Kafka).
@@ -314,7 +310,7 @@ concurrency guard. See
 - `demo_deployed` is demo serving only — there is no `champion`/Production
   transition in P0.
 - P1 (anomaly/drift/cost/approval/champion-challenger/retraining/feedback/
-  mock CMMS) is not started.
+  mock CMMS) is authorized but not yet implemented.
 - Demo config values are **demo defaults**, not ABB or any industry standard.
 
 ## Privacy / data statement

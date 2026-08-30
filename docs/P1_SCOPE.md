@@ -21,4 +21,4 @@ empty P1 modules during P0. Full criteria are in the parent spec (§11, §15).
 9. **Mock CMMS** — draft work-order (`POST /api/v1/cmms/work-orders/draft`),
    clearly labeled mock; no real Fiix/SSP endpoints or tokens.
 
-Status: **not started** (P0 pending).
+Status: **authorized, not yet implemented** (P0 Freeze passed 2026-08-30).

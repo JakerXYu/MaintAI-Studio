@@ -50,14 +50,12 @@ pytest -q tests/e2e                     # scripts/run_demo_pipeline + generate_d
   as a subprocess and asserts the full loop (3 models, candidate -> demo
   deploy, predict, 3 grounded copilot calls, leakage blocks `serial_no`).
 
-### Compose (`docker compose`, PENDING)
-
-Not yet run on this machine (Docker not installed). Intended checks once
-available:
+### Compose (`docker compose`, VERIFIED 2026-08-30)
 
 ```powershell
 docker compose up --build
 python scripts/smoke_test.py --api-url http://127.0.0.1:8000 --ui-url http://127.0.0.1:8501
+python scripts/http_e2e.py --api-url http://127.0.0.1:8000
 ```
 
 Accept: `postgres`, `mlflow`, `migrate` (one-shot), `api`, `ui` healthy;
@@ -83,4 +81,5 @@ Accept: `postgres`, `mlflow`, `migrate` (one-shot), `api`, `ui` healthy;
   UI 59, Copilot/preview 82, e2e 2.
 - `uv lock --check` passes. Demo data SHA-256:
   `2b4108048cad5a1aa3c2328890c7d674cdbde24c3f130aceeae6092c3ad33c1b`.
-- Docker Compose runtime: **pending** (unverified locally — no Docker).
+- Docker Compose runtime: **passed**. Postgres/MLflow business counts, live
+  HTTP E2E, UI smoke, and post-restart prediction were verified.

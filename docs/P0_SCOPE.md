@@ -37,9 +37,9 @@ frozen before any P1 work. Full acceptance criteria live in the parent spec
 
 ## Status
 
-P0 is **fully implemented and locally tested**; the P0 Freeze review is in
-progress (not yet passed). The Docker Compose gate is pending because Docker is
-not installed on the machine that produced these docs.
+P0 is **frozen and passed as of 2026-08-30**. Local tests and E2E, locked
+Compose build, Postgres + HTTP MLflow full workflow, UI smoke, and restart
+persistence passed.
 
 | Section | Implemented | Notes |
 |---|---|---|
@@ -49,7 +49,7 @@ not installed on the machine that produced these docs.
 | Agent (LangGraph copilot) | Yes | Read-only tool allowlist; mock + openai-compatible |
 | UI (8 pages) | Yes | Streamlit HTTP-only control room |
 | QA (pytest / demo / smoke) | Yes (local) | Ruff clean; 385 tests pass; local E2E pass |
-| Docker Compose runtime | Pending | Config reviewed; not runtime-verified (no Docker locally) |
+| Docker Compose runtime | Yes | Five services healthy; live HTTP E2E and restart persistence pass |
 
 Acceptance criteria live in the parent spec (§14); this is the condensed scope.
-Do not claim a Freeze pass: see `P0_REVIEW.md` for the conditional verdict.
+See `P0_REVIEW.md` for the final evidence and PASS verdict.

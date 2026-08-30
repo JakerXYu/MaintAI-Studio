@@ -125,5 +125,5 @@ demo CSV, in-memory SQLite + temp MLflow, no network, no secrets).
 The system is tested to degrade gracefully on: CSV with no target, single-class
 target, pure-id column, duplicated target feature, tiny dataset, unknown
 categories at inference, missing prediction field, unavailable MLflow/LLM, and
-simulated database write failure. Postgres/Compose outage behavior remains part
-of the pending Compose gate.
+simulated database write failure. Normal Postgres/Compose operation and service
+restart persistence are verified; deliberate Postgres outage recovery is not claimed.
