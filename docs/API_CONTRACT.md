@@ -203,16 +203,66 @@ POST /explain/local                   GET /explain/global/{model_id}
 POST /copilot/chat
 ```
 
+## P1 Monitoring (implemented, prefix `/api/v1`)
+
+```text
+POST /monitoring/runs       body {"model_id": str,
+                                  "production_dataset_id"?: str,
+                                  "replay_kind"?: "normal"|"mild"|"severe"|
+                                                   "increased_failure_risk",
+                                  "performance_drop"?: float (>=0),
+                                  "baseline_anomaly_rate"?: float (>=0),
+                                  "schedule"?: bool,
+                                  "manual"?: bool}
+                            201 MonitoringRun (synchronous, demo scale)
+GET  /monitoring/runs       ?limit=100&offset=0; 200 [MonitoringRun]
+GET  /monitoring/runs/{id}  200 MonitoringRun
+```
+
+The request body is fixed: `model_id` plus **exactly one** production source
+(`production_dataset_id` xor `replay_kind`). The optional recommendation inputs
+are `performance_drop`, `baseline_anomaly_rate`, `schedule` (schedule due), and
+`manual`; `manual` only adds a manual trigger to the recommendation and never
+forces training, deployment, or an approval.
+
+The `MonitoringRun` response shape is:
+
+```text
+{"id","registered_model_id","dataset_id","production_dataset_id"|null,
+ "replay_kind"|null,"status","drift","anomaly","recommendation",
+ "input_summary","error_message"|null,"created_at","completed_at"|null}
+```
+
+`drift`/`anomaly`/`recommendation` are JSON-safe deterministic results (never raw
+rows); `input_summary` stores only source, ids, counts, and the feature
+allowlist. A run that cannot complete persists with `status: "failed"` and a
+stable, path-free `error_message` and is still returned as `201` (the caller
+polls the detail/list rather than surfacing a background traceback).
+
+Status codes:
+
+- `201` monitoring run persisted (succeeded or failed — see above); `200` reads.
+- `404` registered-model id not found, or a referenced `production_dataset_id`
+  not found, or a monitoring-run id not found.
+- `409` model exists but is neither `candidate` nor `demo_deployed` (only those
+  two states are monitorable; `champion`/`Production` are not P0-serving states).
+- `422` invalid body, arbitrary fields, or not exactly one of
+  `production_dataset_id`/`replay_kind` (or an unknown `replay_kind`).
+- `500` internal error (baseline/metadata inconsistency); a stable `detail` is
+  returned and absolute storage paths are never leaked.
+
+Monitoring only observes: it never trains, deploys, promotes, or creates an
+approval request. A single request-level audit event stores only metadata
+(run/model ids, source, counts, severities) — never raw rows.
+
 ## Planned P1
 
 ```text
-POST /monitoring/batches              GET /monitoring/drift/{batch_id}
-GET  /monitoring/anomalies/{batch_id} POST /monitoring/retraining-recommendation
-
 POST /cmms/work-orders/draft          GET /cmms/work-orders
 ```
 
-(Approvals are implemented — see the "P1 Approvals" section above.)
+(Approvals and monitoring are implemented — see the "P1 Approvals" and
+"P1 Monitoring" sections above.)
 
 ## Conventions
 - JSON bodies; Pydantic v2 validation; 4xx with readable `detail`.

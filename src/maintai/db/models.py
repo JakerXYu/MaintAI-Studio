@@ -74,6 +74,23 @@ APPROVAL_REQUESTER_AGENT = "agent"
 APPROVAL_REQUESTER_USER = "user"
 APPROVAL_REQUESTER_SYSTEM = "system"
 
+# MonitoringRun outcome states (set by the monitoring application service).
+MONITORING_STATUS_SUCCEEDED = "succeeded"
+MONITORING_STATUS_FAILED = "failed"
+
+# Synthetic production-replay kinds (exactly one of these OR an uploaded
+# production dataset is required per monitoring run; never both).
+MONITORING_REPLAY_NORMAL = "normal"
+MONITORING_REPLAY_MILD = "mild"
+MONITORING_REPLAY_SEVERE = "severe"
+MONITORING_REPLAY_INCREASED_FAILURE_RISK = "increased_failure_risk"
+MONITORING_REPLAY_KINDS: tuple[str, ...] = (
+    MONITORING_REPLAY_NORMAL,
+    MONITORING_REPLAY_MILD,
+    MONITORING_REPLAY_SEVERE,
+    MONITORING_REPLAY_INCREASED_FAILURE_RISK,
+)
+
 
 class Dataset(Base):
     __tablename__ = "datasets"
@@ -292,5 +309,61 @@ class ApprovalRequest(Base):
         DateTime(timezone=True), default=utcnow, nullable=False, index=True
     )
     decided_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
+class MonitoringRun(Base):
+    """One deterministic monitoring run over a registered model.
+
+    A run compares one production window against the model's baseline dataset.
+    The production window is exactly one of an uploaded dataset
+    (``production_dataset_id``) or a synthetic replay batch (``replay_kind``) —
+    the check constraint enforces this mutual exclusion. Results (drift, anomaly,
+    recommendation) are JSON-safe Pydantic dumps; ``input_summary_json`` stores
+    only counts/allowlists/ids, never raw rows.
+    """
+
+    __tablename__ = "monitoring_runs"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('succeeded', 'failed')",
+            name="ck_monitoring_runs_status",
+        ),
+        CheckConstraint(
+            "replay_kind IS NULL OR replay_kind IN "
+            "('normal', 'mild', 'severe', 'increased_failure_risk')",
+            name="ck_monitoring_runs_replay_kind",
+        ),
+        CheckConstraint(
+            "(production_dataset_id IS NULL AND replay_kind IS NOT NULL) OR "
+            "(production_dataset_id IS NOT NULL AND replay_kind IS NULL)",
+            name="ck_monitoring_runs_single_source",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    registered_model_id: Mapped[str] = mapped_column(
+        ForeignKey("registered_models.id", ondelete="RESTRICT"), index=True, nullable=False
+    )
+    # Baseline dataset this model was trained on (drift/anomaly reference).
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("datasets.id", ondelete="RESTRICT"), nullable=False
+    )
+    # Uploaded production dataset (mutually exclusive with ``replay_kind``).
+    production_dataset_id: Mapped[str | None] = mapped_column(
+        ForeignKey("datasets.id", ondelete="RESTRICT"), nullable=True
+    )
+    replay_kind: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    drift_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    anomaly_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    recommendation_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    input_summary_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False, index=True
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

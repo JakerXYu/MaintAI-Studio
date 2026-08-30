@@ -27,10 +27,12 @@ from maintai.api.models import (
     build_models_router,
     build_predict_router,
 )
+from maintai.api.monitoring import build_monitoring_router, build_monitoring_service
 from maintai.api.request_id import InvalidRequestIdError, validate_request_id
 from maintai.application.datasets import DatasetService
 from maintai.application.experiments import ExperimentService
 from maintai.application.models import ModelRegistryService
+from maintai.application.monitoring import MonitoringService
 from maintai.application.predictions import PredictionService
 from maintai.approvals import ApprovalService
 from maintai.config import Settings, get_settings
@@ -55,6 +57,7 @@ def create_app(
     copilot_service: CopilotService | None = None,
     approval_service: ApprovalService | None = None,
     approval_token: str | None = None,
+    monitoring_service: MonitoringService | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     session_factory = session_factory or get_session_factory()
@@ -79,6 +82,8 @@ def create_app(
         )
     if approval_service is None:
         approval_service = build_approval_service(session_factory)
+    if monitoring_service is None:
+        monitoring_service = build_monitoring_service(session_factory, settings, dataset_service)
     effective_approval_token = approval_token
     if effective_approval_token is None and settings.approval_api_token is not None:
         effective_approval_token = settings.approval_api_token.get_secret_value()
@@ -95,6 +100,7 @@ def create_app(
         build_approvals_router(approval_service, token=effective_approval_token),
         prefix="/api/v1",
     )
+    app.include_router(build_monitoring_router(monitoring_service), prefix="/api/v1")
 
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):

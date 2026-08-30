@@ -605,6 +605,7 @@ class ExperimentService:
         new_snapshot["comparison"] = comparison.model_dump()
         new_snapshot["explanation"] = global_exp.model_dump()
         new_snapshot["package_artifact"] = artifact_name
+        new_snapshot["resolved_features"] = feature_cols
         if reconciliation_notes:
             new_snapshot["reconciliation_notes"] = reconciliation_notes
 
