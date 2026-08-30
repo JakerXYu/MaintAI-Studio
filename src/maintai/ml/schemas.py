@@ -125,3 +125,39 @@ class Comparison(BaseModel):
     ranking: list[str] = Field(default_factory=list)
     candidates: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+
+
+CostStatus = Literal["ok", "unavailable"]
+
+
+class CostAssumptions(BaseModel):
+    """Demo cost assumptions for cost-aware selection (P1).
+
+    These are illustrative, not real maintenance economics.
+    """
+
+    fn_cost: float = Field(default=1.0, ge=0)
+    fp_cost: float = Field(default=1.0, ge=0)
+    currency_label: str = "demo units"
+
+
+class ModelCostRow(BaseModel):
+    """Per-model cost breakdown. ``status`` is ``unavailable`` for failed models."""
+
+    model_name: str
+    fn: int | None = None
+    fp: int | None = None
+    expected_error_cost: float | None = None
+    primary_metric: str | None = None
+    value: float | None = None
+    status: CostStatus = "ok"
+
+
+class CostComparison(BaseModel):
+    """Deterministic cost-aware comparison: metric-best vs cost-best (P1)."""
+
+    metric_best: str | None = None
+    cost_best: str | None = None
+    rows: list[ModelCostRow] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+    assumptions: CostAssumptions
