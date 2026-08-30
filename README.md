@@ -28,8 +28,9 @@ through HTTP.
 
 **Status.** P0 Freeze **passed on 2026-08-30**. Local gates, a locked Docker
 Compose build, five-service health, the full HTTP workflow on Postgres +
-HTTP MLflow, UI smoke, and API/MLflow restart persistence all passed. P1 is
-authorized but not yet implemented. See [`P0_REVIEW.md`](P0_REVIEW.md).
+HTTP MLflow, UI smoke, and API/MLflow restart persistence all passed. P1 is in
+progress: monitoring, cost comparison, retraining evidence, and token-gated
+human approvals are implemented. See [`docs/P1_SCOPE.md`](docs/P1_SCOPE.md).
 
 ## ABB Theme 1 mapping
 
@@ -54,7 +55,7 @@ SHAP, XGBoost, PostgreSQL. LightGBM is intentionally not offered in P0.
 ## Differentiators
 
 These are the eight differentiators from the implementation spec, with their
-original meaning. Items marked (P1) are planned and not implemented yet.
+original meaning. P1 capabilities are tracked in `docs/P1_SCOPE.md`.
 
 1. **Industrial Data Health Before ML** — fix sensor/data quality *before*
    modeling, not after a broken model appears.
@@ -100,16 +101,16 @@ Full details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Feature matrix
 
-| Area | P0 (implemented) | P1 (planned) |
+| Area | P0 (implemented) | P1 status |
 |---|---|---|
 | Data | CSV/Parquet upload, SHA-256 dedupe, schema inference, profiling, >=6 quality checks, leakage detection, time/group-aware split | — |
 | Tasks / ML | Task recommendation (rule engine), preprocessing, 3 classification + 3 regression models, metrics, SHAP + permutation fallback, confidence, deterministic best-model | Cost-aware selection, unsupervised anomaly |
 | MLOps | MLflow tracking, candidate registration, `demo-deploy`, FastAPI predict (single/batch), audit log | Champion/challenger, drift, retraining, approval |
 | Agent | LangGraph copilot, read-only tool allowlist, mock + openai-compatible providers, action refusal/proposal | Action tools (drift, cost, CMMS, approval) |
 | UI | Home, Dataset & Health, Task & Plan, Experiments, Explainability, Registry & Deploy, Predict, Copilot | Monitoring, Approvals, CMMS pages |
-| Ops | Runtime-verified Docker Compose stack, single in-process worker, `create_all` bootstrap | Alembic, replay/monitoring |
+| Ops | Runtime-verified Docker Compose stack, single in-process worker, `create_all` bootstrap | Replay/monitoring and approvals implemented; Alembic pending |
 
-P1 is **not yet implemented**; P0 Freeze is closed and P1 work is authorized.
+P1 is **in progress**; P0 remains frozen.
 
 ## Quick start
 
@@ -309,8 +310,9 @@ concurrency guard. See
   trusted package in the API artifact volume, cross-linked to its ModelRun.
 - `demo_deployed` is demo serving only — there is no `champion`/Production
   transition in P0.
-- P1 (anomaly/drift/cost/approval/champion-challenger/retraining/feedback/
-  mock CMMS) is authorized but not yet implemented.
+- P1 monitoring/drift/anomaly/replay, cost-aware core, retraining evidence, and
+  approval state/API are implemented. Champion execution, feedback, mock CMMS,
+  P1 UI, and P1 E2E remain.
 - Demo config values are **demo defaults**, not ABB or any industry standard.
 
 ## Privacy / data statement

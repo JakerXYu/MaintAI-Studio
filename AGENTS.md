@@ -21,7 +21,8 @@ in the parent folder (do NOT modify that file or anything outside this repo).
   tracking/registry store. **SQLite is for tests only** (test double).
 - **mock LLM is the default** provider; real providers are env-configured, never
   hard-coded.
-- P1 is NOT implemented yet. Do not create empty P1 modules.
+- P1 is in progress. Implement only concrete, tested vertical slices; do not
+  create empty modules or bypass the frozen P0 contracts.
 - No Celery / Redis / Kafka. P0 training runs as a **single in-process worker**
   (decision recorded in `docs/ARCHITECTURE.md`).
 
@@ -34,8 +35,9 @@ in the parent folder (do NOT modify that file or anything outside this repo).
   retraining/feedback/mock CMMS).
 - **P0 Freeze passed on 2026-08-30.** Local gates, locked Compose build,
   Postgres/HTTP-MLflow full workflow, UI smoke, and restart persistence passed.
-- Current phase: **P1 authorized, not yet implemented**. Preserve all P0
-  contracts and tests; implement P1 in the order in `docs/P1_SCOPE.md`.
+- Current phase: **P1 in progress**. Monitoring/anomaly/drift/replay,
+  cost-aware comparison, approval state/API, and retraining recommendations are
+  implemented. Champion execution, feedback, mock CMMS, P1 UI/E2E remain.
 
 ## 4. Module ownership (do not cross-edit without coordination)
 
