@@ -176,6 +176,44 @@ def test_champion_alias_rejected(registry, tracker):
         registry.set_alias(MODEL_NAME, "prod", "1")
 
 
+def test_promote_champion_sets_champion_alias(registry, tracker):
+    pipeline, _ = _fit_pipeline()
+    tracked = _log_run(tracker, pipeline, f1=0.9)
+    registry.register_run(tracked.run_id, MODEL_NAME)
+
+    rv = registry.promote_champion(MODEL_NAME, "1")
+
+    assert rv.alias == "champion"
+    assert rv.model_uri == f"models:/{MODEL_NAME}/1"
+    client = MlflowClient(registry.tracking_uri)
+    assert str(client.get_model_version_by_alias(MODEL_NAME, "champion").version) == "1"
+
+
+def test_promote_champion_moves_alias_between_versions(registry, tracker):
+    pipeline, _ = _fit_pipeline()
+    first = _log_run(tracker, pipeline, f1=0.5)
+    second = _log_run(tracker, pipeline, f1=0.95)
+    registry.register_run(first.run_id, MODEL_NAME)
+    registry.register_run(second.run_id, MODEL_NAME)
+
+    registry.promote_champion(MODEL_NAME, "1")
+    registry.promote_champion(MODEL_NAME, "2")
+
+    client = MlflowClient(registry.tracking_uri)
+    assert str(client.get_model_version_by_alias(MODEL_NAME, "champion").version) == "2"
+    assert registry.get_version(MODEL_NAME, "1").alias is None
+
+
+def test_promote_champion_missing_version_raises_stable_error(registry, tracker):
+    pipeline, _ = _fit_pipeline()
+    tracked = _log_run(tracker, pipeline, f1=0.9)
+    registry.register_run(tracked.run_id, MODEL_NAME)
+
+    with pytest.raises(RegistryError) as exc_info:
+        registry.promote_champion(MODEL_NAME, "99")
+    assert "file:" not in str(exc_info.value)
+
+
 def test_missing_run_raises_stable_error(registry):
     with pytest.raises(RegistryError) as exc_info:
         registry.register_run("missing-run-id", MODEL_NAME)

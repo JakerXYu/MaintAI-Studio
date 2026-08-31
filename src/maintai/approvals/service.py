@@ -130,6 +130,7 @@ class ApprovalService:
         requested_by_type: str,
         requested_by_id: str | None = None,
         proposed_payload: dict[str, Any] | None = None,
+        session: Session | None = None,
     ) -> dict[str, Any]:
         """Record a pending approval request (plus its audit event) atomically.
 
@@ -156,6 +157,7 @@ class ApprovalService:
             action_type=action_type,
             entity_type=entity_type,
             entity_id=entity_id,
+            session=session,
         ):
             raise ApprovalConflictError("an equivalent approval request is already pending")
 
@@ -170,25 +172,32 @@ class ApprovalService:
             requested_by_id=requested_by_id,
             version=1,
         )
+        def _write(active_session: Session) -> None:
+            nonlocal approval
+            approval = self._repository.create(approval, session=active_session)
+            self._audit.record(
+                actor_type=requested_by_type,
+                actor_id=requested_by_id,
+                action="approval.propose",
+                entity_type=entity_type,
+                entity_id=entity_id,
+                payload={
+                    "approval_id": approval.id,
+                    "action_type": action_type,
+                    "entity_type": entity_type,
+                    "entity_id": entity_id,
+                    "status": APPROVAL_STATUS_PENDING,
+                    "requested_by_type": requested_by_type,
+                },
+                session=active_session,
+            )
+
         try:
-            with self._session_factory.begin() as session:
-                approval = self._repository.create(approval, session=session)
-                self._audit.record(
-                    actor_type=requested_by_type,
-                    actor_id=requested_by_id,
-                    action="approval.propose",
-                    entity_type=entity_type,
-                    entity_id=entity_id,
-                    payload={
-                        "approval_id": approval.id,
-                        "action_type": action_type,
-                        "entity_type": entity_type,
-                        "entity_id": entity_id,
-                        "status": APPROVAL_STATUS_PENDING,
-                        "requested_by_type": requested_by_type,
-                    },
-                    session=session,
-                )
+            if session is not None:
+                _write(session)
+            else:
+                with self._session_factory.begin() as owned_session:
+                    _write(owned_session)
         except IntegrityError as exc:
             raise ApprovalConflictError(
                 "an equivalent approval request is already pending"

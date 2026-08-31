@@ -28,9 +28,11 @@ through HTTP.
 
 **Status.** P0 Freeze **passed on 2026-08-30**. Local gates, a locked Docker
 Compose build, five-service health, the full HTTP workflow on Postgres +
-HTTP MLflow, UI smoke, and API/MLflow restart persistence all passed. P1 is in
-progress: monitoring, cost comparison, retraining evidence, and token-gated
-human approvals are implemented. See [`docs/P1_SCOPE.md`](docs/P1_SCOPE.md).
+HTTP MLflow, UI smoke, and API/MLflow restart persistence all passed. The P1
+demo decision loop is implemented: monitoring, cost comparison, retraining
+evidence, approvals, champion lifecycle, feedback, mock CMMS, and one
+consolidated Streamlit page. See [`docs/P1_SCOPE.md`](docs/P1_SCOPE.md) and the
+[Chinese user guide](docs/USER_GUIDE_CN.md).
 
 ## ABB Theme 1 mapping
 
@@ -107,10 +109,12 @@ Full details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | Tasks / ML | Task recommendation (rule engine), preprocessing, 3 classification + 3 regression models, metrics, SHAP + permutation fallback, confidence, deterministic best-model | Cost-aware selection, unsupervised anomaly |
 | MLOps | MLflow tracking, candidate registration, `demo-deploy`, FastAPI predict (single/batch), audit log | Champion/challenger, drift, retraining, approval |
 | Agent | LangGraph copilot, read-only tool allowlist, mock + openai-compatible providers, action refusal/proposal | Action tools (drift, cost, CMMS, approval) |
-| UI | Home, Dataset & Health, Task & Plan, Experiments, Explainability, Registry & Deploy, Predict, Copilot | Monitoring, Approvals, CMMS pages |
+| UI | Home, Dataset & Health, Task & Plan, Experiments, Explainability, Registry & Deploy, Predict, Copilot | Consolidated P1 Monitor & Act page |
 | Ops | Runtime-verified Docker Compose stack, single in-process worker, `create_all` bootstrap | Replay/monitoring and approvals implemented; Alembic pending |
 
-P1 is **in progress**; P0 remains frozen.
+P1 **demo closure is implemented**; P0 remains frozen. Production identity,
+automatic retraining deployment, real CMMS connectivity, and online learning are
+explicitly out of scope.
 
 ## Quick start
 

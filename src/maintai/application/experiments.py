@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import time
 from pathlib import Path
@@ -48,11 +49,12 @@ from maintai.db.models import (
 )
 from maintai.ml import catalog, explain, package, preprocess
 from maintai.ml.catalog import ModelUnavailableError
+from maintai.ml.cost import CostError, compare_costs
 from maintai.ml.explain import ExplanationError
 from maintai.ml.package import ArtifactError
 from maintai.ml.preprocess import PreprocessError
 from maintai.ml.recommend import recommend as recommend_model
-from maintai.ml.schemas import MLSettings, TrainingPlan
+from maintai.ml.schemas import CostAssumptions, MLSettings, TrainingPlan, TrainingResult
 from maintai.ml.train import TrainingError, train
 from maintai.mlops.tracker import MLflowTracker, TrackingError
 
@@ -60,6 +62,14 @@ _VALID_TASKS: tuple[str, ...] = (
     "binary_classification",
     "multiclass_classification",
     "regression",
+)
+
+# Stable, user-facing disclaimer: cost numbers are illustrative demo assumptions,
+# never actual maintenance economics. Returned verbatim with every comparison.
+_COST_DISCLAIMER = (
+    "cost-aware comparison uses illustrative demo cost assumptions, not real "
+    "maintenance economics; validate FN/FP costs against actual maintenance "
+    "economics before making any decision"
 )
 
 
@@ -77,6 +87,14 @@ class DatasetNotReadyError(ExperimentServiceError):
 
 class ExperimentStateError(ExperimentServiceError):
     """Raised when a run is requested for an experiment not in the ``queued`` state."""
+
+
+class CostComparisonIncompleteError(ExperimentServiceError):
+    """Raised when a cost comparison is requested before a result snapshot exists."""
+
+
+class CostComparisonUnsupportedError(ExperimentServiceError):
+    """Raised when the persisted result cannot support cost-aware comparison."""
 
 
 # Exceptions whose ``str()`` is already a stable, path-free message produced by
@@ -696,3 +714,68 @@ class ExperimentService:
         result["recommended_run_id"] = experiment.recommended_run_id
         result["value"] = experiment.value
         return result
+
+    @staticmethod
+    def _validate_cost_inputs(
+        fn_cost: float, fp_cost: float, minimum_recall: float
+    ) -> None:
+        """Reject non-finite or out-of-range cost inputs with a stable message."""
+        for name, value in (("fn_cost", fn_cost), ("fp_cost", fp_cost)):
+            if not math.isfinite(value) or value < 0:
+                raise ExperimentServiceError(f"{name} must be a finite number >= 0")
+        if not math.isfinite(minimum_recall) or not 0.0 <= minimum_recall <= 1.0:
+            raise ExperimentServiceError("minimum_recall must be in [0, 1]")
+
+    def cost_comparison(
+        self,
+        experiment_id: str,
+        *,
+        fn_cost: float,
+        fp_cost: float,
+        minimum_recall: float,
+    ) -> dict[str, Any]:
+        """Return a deterministic cost-aware comparison for a succeeded experiment.
+
+        Reuses the persisted ``TrainingResult`` snapshot and the deterministic
+        :func:`maintai.ml.cost.compare_costs`. The experiment must be
+        ``succeeded`` with a persisted binary-classification result; a missing or
+        incomplete snapshot raises :class:`CostComparisonIncompleteError`, and a
+        non-binary result raises :class:`CostComparisonUnsupportedError`. The
+        response always carries the demo disclaimer. No MLflow, no LLM, no
+        deployment.
+        """
+        experiment = self._get_or_raise(experiment_id)
+
+        self._validate_cost_inputs(fn_cost, fp_cost, minimum_recall)
+
+        snapshot = experiment.training_plan_json
+        stored = snapshot.get("result") if isinstance(snapshot, dict) else None
+        if experiment.status != EXPERIMENT_STATUS_SUCCEEDED or not isinstance(stored, dict):
+            raise CostComparisonIncompleteError(
+                f"experiment {experiment_id!r} has no persisted training result; "
+                "run the experiment to completion first"
+            )
+        try:
+            result = TrainingResult.model_validate(stored)
+        except Exception as exc:  # noqa: BLE001 - a corrupt snapshot is incomplete
+            raise CostComparisonIncompleteError(
+                f"experiment {experiment_id!r} training result snapshot is incomplete"
+            ) from exc
+
+        if result.task != "binary_classification":
+            raise CostComparisonUnsupportedError(
+                f"cost comparison requires a binary_classification result, "
+                f"got {result.task!r}"
+            )
+
+        assumptions = CostAssumptions(fn_cost=fn_cost, fp_cost=fp_cost)
+        try:
+            comparison = compare_costs(result, assumptions, minimum_recall=minimum_recall)
+        except CostError as exc:
+            raise CostComparisonUnsupportedError(str(exc)) from exc
+
+        payload = comparison.model_dump()
+        payload["experiment_id"] = experiment.id
+        payload["minimum_recall"] = minimum_recall
+        payload["disclaimer"] = _COST_DISCLAIMER
+        return payload

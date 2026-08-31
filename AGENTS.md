@@ -69,3 +69,13 @@ in the parent folder (do NOT modify that file or anything outside this repo).
 - Do not run `git init`/`git commit` — the lead agent owns Git.
 - No proprietary/real data; demo data is public or synthetic (AI4I).
 - Commit style: `feat(data): …`, `fix(api): …`, `test(e2e): …`.
+
+## 7. Project skills (all agents)
+
+- Apply `.kilo/skills/ponytail/SKILL.md` in `full` mode by default for every
+  coding task: understand the flow first, then reuse existing code/platform
+  features and implement the smallest correct, tested change. Never simplify
+  away validation, security, audit, accessibility, evidence, or P0 contracts.
+- Apply `.kilo/skills/ui-ux-pro-max/SKILL.md` automatically for UI/UX work.
+  Preserve the Streamlit HTTP-only boundary and the established industrial
+  control-room visual language.

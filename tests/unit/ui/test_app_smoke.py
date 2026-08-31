@@ -120,3 +120,13 @@ def test_app_guards_streamlit_entrypoint() -> None:
     """The Streamlit entrypoint must be behind the __main__ guard."""
     source = _read_source("app.py")
     assert 'if __name__ == "__main__":' in source
+
+
+def test_p1_monitor_page_is_registered_once() -> None:
+    """The consolidated P1 page is a single navigation entry labeled 9."""
+    source = _read_source("app.py")
+    assert '"9. P1 Monitor & Act"' in source
+    assert source.count("p1_monitor") >= 2  # PAGES tuple + dispatch
+    assert '"9. P1 Monitor' in source
+    # No additional P1 pages were added (single consolidated page).
+    assert '"10.' not in source

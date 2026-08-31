@@ -257,3 +257,129 @@ def test_records_to_csv_round_trip() -> None:
 
 def test_records_to_csv_empty() -> None:
     assert R.records_to_csv([]) == ""
+
+
+# -- P1 payload helpers --------------------------------------------------------
+
+
+def test_replay_kinds_are_fixed() -> None:
+    assert R.REPLAY_KINDS == ("normal", "mild", "severe", "increased_failure_risk")
+
+
+def test_drift_feature_rows_sort_high_first() -> None:
+    drift = {
+        "overall_severity": "HIGH",
+        "features": [
+            {"feature": "a", "kind": "numeric", "severity": "LOW", "psi": 0.01},
+            {"feature": "b", "kind": "numeric", "severity": "HIGH", "psi": 0.3, "notes": ["shift"]},
+            {"feature": "c", "kind": "categorical", "severity": "MEDIUM", "total_variation": 0.2},
+        ],
+    }
+    rows = R.drift_feature_rows(drift)
+    assert [row["feature"] for row in rows] == ["b", "c", "a"]
+    assert rows[0]["psi"] == "0.3"
+    assert rows[0]["notes"] == "shift"
+
+
+def test_anomaly_top_rows_flattens_deviating_features() -> None:
+    anomaly = {
+        "flagged_count": 1,
+        "anomaly_rate": 0.01,
+        "top_anomalies": [
+            {
+                "row_index": 3,
+                "combined_score": 4.5,
+                "robust_score": 3.1,
+                "iforest_score": 0.9,
+                "flag": True,
+                "top_deviating_features": [{"feature": "torque", "robust_z": 4.0}],
+            }
+        ],
+    }
+    rows = R.anomaly_top_rows(anomaly)
+    assert rows[0]["row_index"] == 3
+    assert rows[0]["flag"] is True
+    assert rows[0]["top_features"] == "torque (z=4)"
+
+
+def test_recommendation_evidence_rows() -> None:
+    recommendation = {
+        "recommended": True,
+        "evidence": [
+            {"trigger": "drift", "value": 0.3, "threshold": 0.2, "detail": "psi"},
+            {"trigger": "anomaly", "value": 0.05, "threshold": 0.02, "detail": "rate"},
+        ],
+    }
+    rows = R.recommendation_evidence_rows(recommendation)
+    assert [row["trigger"] for row in rows] == ["drift", "anomaly"]
+    assert rows[0]["value"] == "0.3"
+
+
+def test_cost_comparison_rows() -> None:
+    cost = {
+        "metric_best": "xgboost",
+        "cost_best": "random_forest",
+        "rows": [
+            {
+                "model_name": "random_forest",
+                "fn": 2,
+                "fp": 10,
+                "expected_error_cost": 30.0,
+                "value": 0.85,
+                "status": "ok",
+            },
+        ],
+    }
+    rows = R.cost_comparison_rows(cost)
+    assert rows[0]["model"] == "random_forest"
+    assert rows[0]["expected_error_cost"] == "30"
+    assert rows[0]["false_negatives"] == "2"
+
+
+def test_approval_rows_are_redacted() -> None:
+    approvals = [
+        {
+            "id": "ap-1",
+            "action_type": "model_promotion",
+            "entity_type": "registered_model",
+            "entity_id": "rm-1",
+            "status": "pending",
+            "version": 1,
+            "requested_by_type": "agent",
+            "created_at": "2026-01-01T00:00:00",
+        }
+    ]
+    rows = R.approval_rows(approvals)
+    assert rows[0]["action"] == "model_promotion"
+    assert rows[0]["status"] == "pending"
+    assert "proposed_payload" not in rows[0]
+
+
+def test_feedback_rows() -> None:
+    feedback = [
+        {
+            "id": "fb-1",
+            "prediction_event_id": "pe-1",
+            "outcome": "confirmed_issue",
+            "technician_id": "tech-1",
+        }
+    ]
+    rows = R.feedback_rows(feedback)
+    assert rows[0]["outcome"] == "confirmed_issue"
+    assert rows[0]["technician_id"] == "tech-1"
+
+
+def test_work_order_rows() -> None:
+    orders = [
+        {
+            "id": "wo-1",
+            "asset_id": "a1",
+            "priority": "high",
+            "recommended_action": "inspect",
+            "status": "approved",
+            "mock": True,
+        }
+    ]
+    rows = R.work_order_rows(orders)
+    assert rows[0]["asset_id"] == "a1"
+    assert rows[0]["mock"] is True

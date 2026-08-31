@@ -18,7 +18,8 @@ MLflow:  http://localhost:5000
 ```
 
 1. Start the stack (`docker compose up --build`) or the local venv path.
-2. Open the UI; confirm the left rail shows 8 pipeline pages.
+2. Open the UI; confirm the left rail shows 9 pipeline pages (8 frozen P0 pages
+   plus `P1 Monitor & Act`).
 3. (Fallback) `python scripts/run_demo_pipeline.py` prints a single-line JSON
    summary closing the same loop.
 

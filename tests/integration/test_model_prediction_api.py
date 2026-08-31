@@ -448,9 +448,8 @@ def test_register_not_eligible_409(api_client):
     assert r.status_code == 409
 
 
-def test_champion_and_production_endpoints_absent(api_client):
+def test_unsupported_production_endpoints_absent(api_client):
     for path in (
-        "/api/v1/models/x/promotion-request",
         "/api/v1/models/x/champion",
         "/api/v1/models/x/deploy-production",
         "/api/v1/models/x/production",

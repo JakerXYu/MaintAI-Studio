@@ -71,8 +71,10 @@ src/maintai/
   ui/                Streamlit control-room app (HTTP-only client)
 ```
 
-P1 will add `monitoring/`, `approvals/`, `cmms/` per module ownership (see
-`AGENTS.md`) — not started.
+P1 adds `monitoring/`, `approvals/`, `feedback/`, and `cmms/`. Additive lifecycle,
+execution-receipt, feedback, and mock-work-order tables preserve P0 deployment
+semantics. Approval and execution remain separate; the Streamlit P1 page uses
+only the same HTTP API boundary as the frozen P0 pages.
 
 ## Health model
 

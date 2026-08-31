@@ -55,6 +55,21 @@ def _path_segment(value: Any) -> str:
     return quote(str(value), safe="")
 
 
+def _auth_headers(token: str | None, actor_id: str | None = None) -> dict[str, str]:
+    """Build local-demo auth headers without caching, rendering, or logging the token.
+
+    The bearer token is only ever placed into the outgoing ``Authorization``
+    header for the single request that needs it; it is never stored on the
+    client, echoed back, or persisted anywhere.
+    """
+    headers: dict[str, str] = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    if actor_id:
+        headers["X-Human-Actor-ID"] = actor_id
+    return headers
+
+
 class APIClient:
     """Synchronous HTTP client bound to a single base URL and timeout."""
 
@@ -265,3 +280,196 @@ class APIClient:
         if conversation_id:
             body["conversation_id"] = conversation_id
         return self._request("POST", f"{_API_PREFIX}/copilot/chat", json=body)
+
+    # -- monitoring (P1) ----------------------------------------------------
+
+    def create_monitoring_run(
+        self,
+        model_id: str,
+        *,
+        replay_kind: str | None = None,
+        production_dataset_id: str | None = None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {"model_id": model_id}
+        if replay_kind is not None:
+            body["replay_kind"] = replay_kind
+        if production_dataset_id is not None:
+            body["production_dataset_id"] = production_dataset_id
+        return self._request("POST", f"{_API_PREFIX}/monitoring/runs", json=body)
+
+    def list_monitoring_runs(self, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+        return self._request(
+            "GET", f"{_API_PREFIX}/monitoring/runs", params={"limit": limit, "offset": offset}
+        )
+
+    def get_monitoring_run(self, run_id: str) -> dict[str, Any]:
+        return self._request("GET", f"{_API_PREFIX}/monitoring/runs/{_path_segment(run_id)}")
+
+    # -- cost-aware comparison (P1) -----------------------------------------
+
+    def get_cost_comparison(
+        self,
+        experiment_id: str,
+        fn_cost: float,
+        fp_cost: float,
+        minimum_recall: float,
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"{_API_PREFIX}/experiments/{_path_segment(experiment_id)}/cost-comparison",
+            json={"fn_cost": fn_cost, "fp_cost": fp_cost, "minimum_recall": minimum_recall},
+        )
+
+    # -- approvals (P1) -----------------------------------------------------
+
+    def propose_approval(
+        self,
+        *,
+        action_type: str,
+        entity_type: str,
+        entity_id: str,
+        requested_by_type: str,
+        requested_by_id: str | None = None,
+        proposed_payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "action_type": action_type,
+            "entity_type": entity_type,
+            "entity_id": entity_id,
+            "requested_by_type": requested_by_type,
+        }
+        if requested_by_id:
+            body["requested_by_id"] = requested_by_id
+        if proposed_payload is not None:
+            body["proposed_payload"] = proposed_payload
+        return self._request("POST", f"{_API_PREFIX}/approvals", json=body)
+
+    def list_approvals(
+        self,
+        *,
+        status: str | None = None,
+        action_type: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if status:
+            params["status"] = status
+        if action_type:
+            params["action_type"] = action_type
+        return self._request("GET", f"{_API_PREFIX}/approvals", params=params)
+
+    def get_approval(self, approval_id: str, *, token: str | None = None) -> dict[str, Any]:
+        return self._request(
+            "GET",
+            f"{_API_PREFIX}/approvals/{_path_segment(approval_id)}",
+            headers=_auth_headers(token),
+        )
+
+    def approve_approval(
+        self,
+        approval_id: str,
+        expected_version: int,
+        *,
+        token: str | None = None,
+        actor_id: str | None = None,
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"{_API_PREFIX}/approvals/{_path_segment(approval_id)}/approve",
+            json={"expected_version": expected_version},
+            headers=_auth_headers(token, actor_id),
+        )
+
+    def reject_approval(
+        self,
+        approval_id: str,
+        expected_version: int,
+        reason: str,
+        *,
+        token: str | None = None,
+        actor_id: str | None = None,
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"{_API_PREFIX}/approvals/{_path_segment(approval_id)}/reject",
+            json={"expected_version": expected_version, "reason": reason},
+            headers=_auth_headers(token, actor_id),
+        )
+
+    # -- champion/challenger promotion (P1) ---------------------------------
+
+    def request_promotion(
+        self,
+        registered_id: str,
+        *,
+        requested_by_type: str = "agent",
+        requested_by_id: str | None = None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {"requested_by_type": requested_by_type}
+        if requested_by_id:
+            body["requested_by_id"] = requested_by_id
+        return self._request(
+            "POST",
+            f"{_API_PREFIX}/models/{_path_segment(registered_id)}/promotion-request",
+            json=body,
+        )
+
+    def promote_model(
+        self,
+        registered_id: str,
+        approval_id: str,
+        *,
+        token: str | None = None,
+        actor_id: str | None = None,
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"{_API_PREFIX}/models/{_path_segment(registered_id)}/promote",
+            json={"approval_id": approval_id},
+            headers=_auth_headers(token, actor_id),
+        )
+
+    # -- technician feedback (P1) -------------------------------------------
+
+    def submit_feedback(
+        self,
+        prediction_id: str,
+        outcome: str,
+        *,
+        actor_id: str,
+        comment: str | None = None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {"outcome": outcome}
+        if comment:
+            body["comment"] = comment
+        return self._request(
+            "POST",
+            f"{_API_PREFIX}/predictions/{_path_segment(prediction_id)}/feedback",
+            json=body,
+            headers={"X-Human-Actor-ID": actor_id},
+        )
+
+    def list_feedback(
+        self, prediction_id: str, limit: int = 100, offset: int = 0
+    ) -> list[dict[str, Any]]:
+        return self._request(
+            "GET",
+            f"{_API_PREFIX}/predictions/{_path_segment(prediction_id)}/feedback",
+            params={"limit": limit, "offset": offset},
+        )
+
+    # -- mock CMMS (P1) -----------------------------------------------------
+
+    def draft_work_order(self, approval_id: str, *, token: str | None = None) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"{_API_PREFIX}/cmms/work-orders/draft",
+            json={"approval_id": approval_id},
+            headers=_auth_headers(token),
+        )
+
+    def list_work_orders(self, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+        return self._request(
+            "GET", f"{_API_PREFIX}/cmms/work-orders", params={"limit": limit, "offset": offset}
+        )

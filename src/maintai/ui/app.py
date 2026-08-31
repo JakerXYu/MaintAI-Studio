@@ -39,58 +39,93 @@ PAGES: tuple[tuple[str, str], ...] = (
     ("registry", "6. Registry & Deploy"),
     ("predict", "7. Predict"),
     ("copilot", "8. Copilot"),
+    ("p1_monitor", "9. P1 Monitor & Act"),
 )
 
 _LABEL_TO_KEY = {label: key for key, label in PAGES}
 
-# Restrained industrial control-room palette (graphite / navy / amber / cyan).
+# High-contrast industrial control-room palette (graphite / navy / amber / cyan).
 _CSS = """
 <style>
-  .stApp { background-color: #14181d; color: #d5dbe0; }
-  [data-testid="stSidebar"] {
-    background-color: #10151a;
-    border-right: 1px solid #27313c;
+  :root {
+    --maintai-bg: #0b1015;
+    --maintai-surface: #111922;
+    --maintai-surface-raised: #17222c;
+    --maintai-border: #526271;
+    --maintai-text: #f1f5f8;
+    --maintai-muted: #bdc8d1;
+    --maintai-accent: #62e4ef;
+    --maintai-warn: #ffc766;
+    --maintai-error: #ff8585;
   }
-  h1, h2, h3, h4 { color: #e8edf2; font-weight: 600; letter-spacing: 0.02em; }
+  .stApp { background-color: var(--maintai-bg); color: var(--maintai-text); }
+  .stApp p, .stApp label, .stApp li, .stApp [data-testid="stCaptionContainer"] {
+    color: var(--maintai-muted);
+  }
+  [data-testid="stSidebar"] {
+    background-color: #0e151c;
+    border-right: 1px solid var(--maintai-border);
+  }
+  h1, h2, h3, h4 { color: #ffffff; font-weight: 650; letter-spacing: 0.015em; }
   .maintai-rail-title {
     font-family: monospace; font-size: 0.78rem; letter-spacing: 0.18em;
-    color: #6b7a89; text-transform: uppercase; margin-bottom: 0.4rem;
+    color: #c8d2da; text-transform: uppercase; margin-bottom: 0.4rem;
   }
-  .maintai-brand { font-family: monospace; font-weight: 700; color: #e8edf2; }
-  .maintai-brand .accent { color: #35c0d0; }
+  .maintai-brand { font-family: monospace; font-weight: 700; color: #ffffff; }
+  .maintai-brand .accent { color: var(--maintai-accent); }
   .maintai-section {
-    border: 1px solid #27313c; border-left: 3px solid #35c0d0;
-    padding: 0.6rem 0.9rem; margin: 0.5rem 0 0.9rem 0; border-radius: 2px;
-    background-color: #171d23; font-size: 0.86rem; color: #9fb0bd;
+    border: 1px solid var(--maintai-border); border-left: 4px solid var(--maintai-accent);
+    padding: 0.7rem 0.95rem; margin: 0.5rem 0 0.9rem 0; border-radius: 4px;
+    background-color: var(--maintai-surface); font-size: 0.9rem;
+    color: var(--maintai-muted);
   }
-  .maintai-kv { font-family: monospace; font-size: 0.82rem; color: #8fa1ae; }
-  .maintai-kv b { color: #d5dbe0; font-weight: 600; }
+  .maintai-section b { color: var(--maintai-text); }
+  .maintai-kv { font-family: monospace; font-size: 0.82rem; color: #c2ccd4; }
+  .maintai-kv b { color: #ffffff; font-weight: 650; overflow-wrap: anywhere; }
   .maintai-disclaimer {
-    border: 1px solid #5a4520; border-left: 3px solid #e8a33d;
-    background-color: #1c1912; color: #d9c28a; padding: 0.55rem 0.8rem;
-    border-radius: 2px; font-size: 0.82rem; margin-top: 0.6rem;
+    border: 1px solid #9d742d; border-left: 4px solid var(--maintai-warn);
+    background-color: #201b11; color: #ffe2a4; padding: 0.65rem 0.85rem;
+    border-radius: 4px; font-size: 0.84rem; margin-top: 0.6rem;
   }
   .status-badge {
     display: inline-block; font-family: monospace; font-size: 0.72rem;
-    letter-spacing: 0.06em; padding: 1px 7px; border: 1px solid; border-radius: 2px;
+    letter-spacing: 0.06em; padding: 2px 8px; border: 1px solid; border-radius: 3px;
+    font-weight: 700;
   }
   [data-testid="stMetric"] {
-    background-color: #171d23; border: 1px solid #27313c; border-radius: 2px;
-    padding: 0.5rem 0.7rem;
+    background-color: var(--maintai-surface); border: 1px solid var(--maintai-border);
+    border-radius: 4px; padding: 0.55rem 0.75rem;
   }
-  [data-testid="stMetricLabel"] { color: #6b7a89; }
-  [data-testid="stMetricValue"] { color: #35c0d0; font-family: monospace; }
+  [data-testid="stMetricLabel"] { color: #d3dbe1; }
+  [data-testid="stMetricValue"] { color: var(--maintai-accent); font-family: monospace; }
   .stButton > button, .stDownloadButton > button {
-    background-color: #1b232c; color: #d5dbe0; border: 1px solid #33414f;
-    border-radius: 2px; font-size: 0.82rem;
+    background-color: var(--maintai-surface-raised); color: #ffffff;
+    border: 1px solid #718292; border-radius: 4px; font-size: 0.86rem;
+    min-height: 2.5rem;
   }
   .stButton > button:hover, .stDownloadButton > button:hover {
-    border-color: #35c0d0; color: #e8edf2;
+    border-color: var(--maintai-accent); color: #ffffff; background-color: #20313d;
   }
-  [data-testid="stDataFrame"] { border: 1px solid #27313c; }
-  a { color: #35c0d0; }
+  .stButton > button:focus-visible, .stDownloadButton > button:focus-visible,
+  input:focus-visible, textarea:focus-visible, [role="radio"]:focus-visible {
+    outline: 3px solid var(--maintai-accent); outline-offset: 2px;
+  }
+  [data-baseweb="input"] > div, [data-baseweb="textarea"] > div,
+  [data-baseweb="select"] > div {
+    background-color: var(--maintai-surface); border-color: #718292;
+  }
+  [data-baseweb="input"] input, [data-baseweb="textarea"] textarea,
+  [data-baseweb="select"] * { color: var(--maintai-text); }
+  [data-testid="stDataFrame"] { border: 1px solid var(--maintai-border); }
+  [data-testid="stTabs"] button { color: #d3dbe1; }
+  [data-testid="stTabs"] button[aria-selected="true"] {
+    color: #ffffff; border-bottom-color: var(--maintai-accent);
+  }
+  code { color: #f3f7fa; background-color: #17212a; }
+  a { color: var(--maintai-accent); text-decoration-thickness: 1px; }
   @media (max-width: 768px) {
     .maintai-section { font-size: 0.8rem; }
+    [data-testid="stMetric"] { min-width: 0; }
   }
 </style>
 """
@@ -111,12 +146,12 @@ def _escape(text: Any) -> str:
 
 def _badge(text: str, kind: str) -> None:
     colors = {
-        "ok": "#35c0d0",
-        "warn": "#e8a33d",
-        "err": "#e05252",
-        "info": "#8b98a5",
+        "ok": "#62e4ef",
+        "warn": "#ffc766",
+        "err": "#ff8585",
+        "info": "#c4d0d9",
     }
-    color = colors.get(kind, "#8b98a5")
+    color = colors.get(kind, "#c4d0d9")
     st.markdown(
         f'<span class="status-badge" style="color:{color};border-color:{color};">'
         f"{_escape(text)}</span>",
@@ -1088,6 +1123,532 @@ def _render_copilot_response(response: dict[str, Any]) -> None:
     )
 
 
+# -- page: P1 Monitor & Act ----------------------------------------------------
+
+
+def _page_p1_monitor(client: APIClient) -> None:
+    st.title("P1 Monitor & Act")
+    _section(
+        "P1 operations console",
+        "Deterministic monitoring, cost-aware comparison, human-gated promotion "
+        "and approvals, and technician feedback + mock CMMS. Every action runs "
+        "through the FastAPI backend over HTTP; nothing auto-deploys or retrains.",
+    )
+    st.markdown(
+        f'<div class="maintai-disclaimer">{_escape(R.PRODUCT_DISCLAIMER)}</div>',
+        unsafe_allow_html=True,
+    )
+
+    tab_monitoring, tab_cost, tab_promotion, tab_feedback = st.tabs(
+        ["Monitoring", "Cost", "Promotion & approvals", "Feedback & Mock CMMS"]
+    )
+    with tab_monitoring:
+        _render_monitoring_tab(client)
+    with tab_cost:
+        _render_cost_tab(client)
+    with tab_promotion:
+        _render_promotion_tab(client)
+    with tab_feedback:
+        _render_feedback_tab(client)
+
+
+def _gate_inputs(prefix: str) -> tuple[str, str]:
+    """Render the local-demo human gate inputs (token is never displayed/logged)."""
+    token = st.text_input(
+        "Approval bearer token",
+        type="password",
+        key=f"{prefix}_token",
+        help="Local-demo APPROVAL_API_TOKEN; never logged or cached globally.",
+    )
+    actor = st.text_input("Human actor id", key=f"{prefix}_actor")
+    return token, actor
+
+
+def _severity_kind(severity: Any) -> str:
+    value = str(severity).upper()
+    if value == "HIGH":
+        return "err"
+    if value == "MEDIUM":
+        return "warn"
+    return "ok"
+
+
+# -- tab: Monitoring -----------------------------------------------------------
+
+
+def _render_monitoring_tab(client: APIClient) -> None:
+    st.markdown(
+        f'<div class="maintai-disclaimer">{_escape(R.MONITORING_DISCLAIMER)}</div>',
+        unsafe_allow_html=True,
+    )
+
+    models = _models(client)
+    if st.button("Refresh models", key="refresh_models_monitor"):
+        _reload(client, "models_cache", client.list_models)
+        models = _models(client)
+    if not models:
+        st.info("No registered models. Register a candidate on Registry & Deploy first.")
+        return
+    monitorable = [
+        m
+        for m in models
+        if isinstance(m, dict) and m.get("deployment_status") in ("candidate", "demo_deployed")
+    ]
+    if not monitorable:
+        st.info("No candidate / demo-deployed model available to monitor.")
+        return
+
+    ids = [m.get("id") for m in monitorable if m.get("id")]
+    selected = st.selectbox(
+        "Model to monitor",
+        options=ids,
+        key="monitor_model",
+        format_func=lambda i: _model_label(monitorable, i),
+    )
+    replay_kind = st.selectbox(
+        "Replay kind (synthetic production window)",
+        options=list(R.REPLAY_KINDS),
+        key="monitor_replay_kind",
+    )
+    if st.button("Run monitoring replay", key="run_monitoring"):
+        result = _try(
+            lambda: client.create_monitoring_run(selected, replay_kind=replay_kind),
+            "Monitoring run",
+        )
+        if isinstance(result, dict):
+            st.session_state["monitoring_result"] = result
+
+    result = st.session_state.get("monitoring_result")
+    if isinstance(result, dict):
+        _render_monitoring_result(result)
+
+    st.subheader("Recent monitoring runs")
+    runs = _load(client, "monitoring_runs_cache", client.list_monitoring_runs)
+    if st.button("Refresh runs", key="refresh_monitoring_runs"):
+        _reload(client, "monitoring_runs_cache", client.list_monitoring_runs)
+        runs = _load(client, "monitoring_runs_cache", client.list_monitoring_runs)
+    if not runs:
+        st.info("No monitoring runs recorded yet.")
+        return
+    run_ids = [r.get("id") for r in runs if r.get("id")]
+    chosen = st.selectbox(
+        "Run",
+        options=run_ids,
+        key="monitor_run",
+        format_func=lambda i: i[:8],
+    )
+    if chosen and st.button("Load run", key="load_monitoring_run"):
+        detail = _try(lambda: client.get_monitoring_run(chosen), "Load monitoring run")
+        if isinstance(detail, dict):
+            st.session_state["monitoring_result"] = detail
+            st.rerun()
+
+
+def _render_monitoring_result(result: dict[str, Any]) -> None:
+    status = result.get("status")
+    kind = "ok" if status == "succeeded" else ("err" if status == "failed" else "warn")
+    _badge(str(status).upper(), kind)
+    _kv("Run id", result.get("id"))
+    _kv("Replay kind", result.get("replay_kind"))
+    _kv("Baseline dataset", result.get("dataset_id"))
+    _kv("Created", result.get("created_at"))
+    _kv("Completed", result.get("completed_at"))
+    if result.get("error_message"):
+        st.error(f"Run failed: {result['error_message']}")
+        return
+
+    drift = result.get("drift") if isinstance(result.get("drift"), dict) else {}
+    anomaly = result.get("anomaly") if isinstance(result.get("anomaly"), dict) else {}
+    recommendation = (
+        result.get("recommendation") if isinstance(result.get("recommendation"), dict) else {}
+    )
+
+    st.subheader("Drift")
+    if drift:
+        overall = str(drift.get("overall_severity") or "LOW").upper()
+        _badge(overall, _severity_kind(drift.get("overall_severity")))
+        rows = R.drift_feature_rows(drift)
+        if rows:
+            st.dataframe(rows)
+        else:
+            st.info("No per-feature drift recorded.")
+        notes = drift.get("notes") or []
+        if notes:
+            st.markdown("**Notes**")
+            for note in notes:
+                st.markdown(f"- {_escape(note)}")
+    else:
+        st.info("No drift report for this run.")
+
+    st.subheader("Anomaly detection")
+    if anomaly:
+        col1, col2 = st.columns(2)
+        col1.metric("Flagged rows", anomaly.get("flagged_count", 0))
+        col2.metric("Anomaly rate", R.fmt_pct(anomaly.get("anomaly_rate")))
+        top = R.anomaly_top_rows(anomaly)
+        if top:
+            st.dataframe(top)
+        if anomaly.get("rows_omitted"):
+            st.caption(f"{anomaly.get('rows_omitted')} lower-scoring rows omitted.")
+    else:
+        st.info("No anomaly report for this run.")
+
+    st.subheader("Retraining recommendation")
+    if recommendation:
+        recommended = bool(recommendation.get("recommended"))
+        _badge("RECOMMENDED" if recommended else "NOT RECOMMENDED", "warn" if recommended else "ok")
+        if recommendation.get("triggers"):
+            st.markdown(
+                "**Triggers**: " + ", ".join(str(t) for t in recommendation["triggers"])
+            )
+        evidence = R.recommendation_evidence_rows(recommendation)
+        if evidence:
+            st.dataframe(evidence)
+        if recommendation.get("proposed_action"):
+            _kv("Proposed action", recommendation.get("proposed_action"))
+        st.caption("auto_deploy is permanently False: a human must approve any change.")
+    else:
+        st.info("No recommendation for this run.")
+
+    st.markdown(
+        f'<div class="maintai-disclaimer">{_escape(R.MONITORING_DISCLAIMER)}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+# -- tab: Cost -----------------------------------------------------------------
+
+
+def _render_cost_tab(client: APIClient) -> None:
+    st.markdown(
+        f'<div class="maintai-disclaimer">{_escape(R.COST_ASSUMPTIONS_DISCLAIMER)}</div>',
+        unsafe_allow_html=True,
+    )
+
+    experiments = _experiments(client)
+    if st.button("Refresh list", key="refresh_experiments_cost"):
+        _reload(client, "experiments_cache", client.list_experiments)
+        experiments = _experiments(client)
+    succeeded = [
+        e for e in experiments if isinstance(e, dict) and e.get("status") == "succeeded"
+    ]
+    if not succeeded:
+        st.info("No succeeded experiment available for cost comparison.")
+        return
+
+    ids = [e.get("id") for e in succeeded if e.get("id")]
+    selected = st.selectbox(
+        "Succeeded experiment",
+        options=ids,
+        key="cost_experiment",
+        format_func=lambda i: i[:8],
+    )
+    col1, col2, col3 = st.columns(3)
+    fn_cost = col1.number_input(
+        "False-negative cost", min_value=0.0, value=10.0, step=1.0, key="cost_fn"
+    )
+    fp_cost = col2.number_input(
+        "False-positive cost", min_value=0.0, value=1.0, step=1.0, key="cost_fp"
+    )
+    min_recall = col3.number_input(
+        "Minimum recall", min_value=0.0, max_value=1.0, value=0.8, step=0.05, key="cost_recall"
+    )
+    if st.button("Compare cost", key="run_cost"):
+        result = _try(
+            lambda: client.get_cost_comparison(selected, fn_cost, fp_cost, min_recall),
+            "Cost comparison",
+        )
+        if isinstance(result, dict):
+            st.session_state["cost_result"] = result
+
+    result = st.session_state.get("cost_result")
+    if isinstance(result, dict):
+        _render_cost_result(result)
+
+
+def _render_cost_result(result: dict[str, Any]) -> None:
+    _kv("Experiment", result.get("experiment_id"))
+    _badge(str(result.get("metric_best") or "--"), "info")
+    st.markdown("metric-best")
+    _badge(str(result.get("cost_best") or "--"), "ok")
+    st.markdown("cost-best")
+    rows = R.cost_comparison_rows(result)
+    if rows:
+        st.dataframe(rows)
+    else:
+        st.info("No cost rows returned.")
+    notes = result.get("notes") or []
+    if notes:
+        st.markdown("**Notes**")
+        for note in notes:
+            st.markdown(f"- {_escape(note)}")
+    assumptions = result.get("assumptions")
+    if isinstance(assumptions, dict):
+        _kv("FN cost", assumptions.get("fn_cost"))
+        _kv("FP cost", assumptions.get("fp_cost"))
+        _kv("Currency", assumptions.get("currency_label"))
+    _kv("Minimum recall", R.fmt_num(result.get("minimum_recall")))
+    st.markdown(
+        f'<div class="maintai-disclaimer">'
+        f"{_escape(result.get('disclaimer') or R.COST_ASSUMPTIONS_DISCLAIMER)}</div>",
+        unsafe_allow_html=True,
+    )
+
+
+# -- tab: Promotion & approvals ------------------------------------------------
+
+
+def _render_promotion_tab(client: APIClient) -> None:
+    st.markdown(
+        f'<div class="maintai-disclaimer">{_escape(R.PROMOTION_DISCLAIMER)}</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.subheader("1. Request promotion")
+    models = _models(client)
+    if st.button("Refresh models", key="refresh_models_promo"):
+        _reload(client, "models_cache", client.list_models)
+        models = _models(client)
+    if not models:
+        st.info("No registered models. Register a candidate on Registry & Deploy first.")
+        return
+    ids = [m.get("id") for m in models if m.get("id")]
+    if not ids:
+        return
+    selected = st.selectbox(
+        "Registered model",
+        options=ids,
+        key="promo_model",
+        format_func=lambda i: _model_label(models, i),
+    )
+    if st.button("Request promotion (challenger)", key="request_promotion"):
+        result = _try(lambda: client.request_promotion(selected), "Promotion request")
+        if isinstance(result, dict):
+            st.session_state["promotion_request"] = result
+            st.session_state.pop("approvals_cache", None)
+    req = st.session_state.get("promotion_request")
+    if isinstance(req, dict):
+        _kv("Approval id", req.get("approval_id"))
+        _kv("Approval status", req.get("approval_status"))
+        _kv("Lifecycle status", req.get("lifecycle_status"))
+
+    st.subheader("2. Human decision gate")
+    token, actor = _gate_inputs("promo")
+
+    st.subheader("3. Approvals")
+    approvals = _load(client, "approvals_cache", client.list_approvals)
+    if st.button("Refresh approvals", key="refresh_approvals"):
+        _reload(client, "approvals_cache", client.list_approvals)
+        approvals = _load(client, "approvals_cache", client.list_approvals)
+    if not approvals:
+        st.info("No approval requests yet.")
+    else:
+        st.dataframe(R.approval_rows(approvals))
+        pending = [a for a in approvals if isinstance(a, dict) and a.get("status") == "pending"]
+        pending_ids = [a.get("id") for a in pending if a.get("id")]
+        if pending_ids:
+            decision_id = st.selectbox(
+                "Pending approval",
+                options=pending_ids,
+                key="promo_approval",
+                format_func=lambda i: i[:8],
+            )
+            version = next(
+                (a.get("version", 1) for a in pending if a.get("id") == decision_id), 1
+            )
+            col1, col2 = st.columns(2)
+            if col1.button("Approve", key="approve_btn", disabled=not (token and actor)):
+                result = _try(
+                    lambda: client.approve_approval(
+                        decision_id, version, token=token, actor_id=actor
+                    ),
+                    "Approve",
+                )
+                if isinstance(result, dict):
+                    st.session_state.pop("approvals_cache", None)
+                    _badge("OK", "ok")
+                    st.rerun()
+            reject_reason = col2.text_input("Reject reason", key="reject_reason")
+            if st.button(
+                "Reject",
+                key="reject_btn",
+                disabled=not (token and actor and reject_reason.strip()),
+            ):
+                result = _try(
+                    lambda: client.reject_approval(
+                        decision_id, version, reject_reason.strip(), token=token, actor_id=actor
+                    ),
+                    "Reject",
+                )
+                if isinstance(result, dict):
+                    st.session_state.pop("approvals_cache", None)
+                    _badge("OK", "ok")
+                    st.rerun()
+        else:
+            st.info("No pending approvals to decide.")
+
+    st.subheader("4. Execute promotion (separate, explicit)")
+    st.caption("Executes only an already approved/modified promotion; it never auto-deploys.")
+    exec_approval_id = st.text_input(
+        "Approval id to execute",
+        key="promo_exec_approval",
+        value=(req or {}).get("approval_id") if isinstance(req, dict) else "",
+    )
+    if st.button(
+        "Execute promotion",
+        key="execute_promotion",
+        disabled=not (token and actor and exec_approval_id.strip()),
+    ):
+        result = _try(
+            lambda: client.promote_model(
+                selected, exec_approval_id.strip(), token=token, actor_id=actor
+            ),
+            "Promotion",
+        )
+        if isinstance(result, dict):
+            st.session_state.pop("models_cache", None)
+            _badge("OK", "ok")
+            st.markdown(
+                f"Promoted **{_escape(result.get('name'))}** v{_escape(result.get('version'))} "
+                f"(executed={result.get('executed')})"
+            )
+            _kv("Lifecycle status", result.get("lifecycle_status"))
+
+
+# -- tab: Feedback & Mock CMMS -------------------------------------------------
+
+
+def _render_feedback_tab(client: APIClient) -> None:
+    st.subheader("Technician feedback")
+    _section(
+        "Submit or review technician feedback",
+        "Requires a technician id (X-Human-Actor-ID); no bearer token. Feedback is "
+        "append-only.",
+    )
+    col1, col2, col3 = st.columns(3)
+    prediction_id = col1.text_input("Prediction event id", key="feedback_prediction_id")
+    actor = col2.text_input("Technician id", key="feedback_actor")
+    outcome = col3.selectbox(
+        "Outcome",
+        options=R.FEEDBACK_OUTCOMES,
+        key="feedback_outcome",
+    )
+    comment = st.text_input("Comment (optional)", key="feedback_comment")
+    if st.button(
+        "Submit feedback",
+        key="submit_feedback",
+        disabled=not (prediction_id.strip() and actor.strip()),
+    ):
+        result = _try(
+            lambda: client.submit_feedback(
+                prediction_id.strip(),
+                outcome,
+                actor_id=actor.strip(),
+                comment=comment.strip() or None,
+            ),
+            "Feedback",
+        )
+        if isinstance(result, dict):
+            _badge("OK", "ok")
+            st.markdown(f"Feedback **{_escape(result.get('id'))}** recorded.")
+    if st.button("List feedback", key="list_feedback", disabled=not prediction_id.strip()):
+        feedback = _try(lambda: client.list_feedback(prediction_id.strip()), "List feedback")
+        if isinstance(feedback, list):
+            if feedback:
+                st.dataframe(R.feedback_rows(feedback))
+            else:
+                st.info("No feedback for this prediction id yet.")
+
+    st.subheader("Mock CMMS")
+    st.markdown(
+        f'<div class="maintai-disclaimer">{_escape(R.CMMS_MOCK_DISCLAIMER)}</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("**Propose a CMMS work order**")
+    col1, col2 = st.columns(2)
+    asset_id = col1.text_input("Asset id", key="cmms_asset_id")
+    priority = col2.selectbox(
+        "Priority", options=("low", "medium", "high", "critical"), key="cmms_priority"
+    )
+    event_id = st.text_input("Prediction event id (entity)", key="cmms_event_id")
+    action = st.text_input("Recommended action", key="cmms_action")
+    risk = st.number_input(
+        "Risk score (optional)", min_value=0.0, value=0.0, step=0.1, key="cmms_risk"
+    )
+    if st.button(
+        "Propose CMMS approval",
+        key="cmms_propose",
+        disabled=not (asset_id.strip() and event_id.strip() and action.strip()),
+    ):
+        payload: dict[str, Any] = {
+            "asset_id": asset_id.strip(),
+            "priority": priority,
+            "recommended_action": action.strip(),
+            "prediction_event_id": event_id.strip(),
+        }
+        if risk > 0:
+            payload["risk_score"] = risk
+        result = _try(
+            lambda: client.propose_approval(
+                action_type="cmms_work_order",
+                entity_type="prediction_event",
+                entity_id=event_id.strip(),
+                requested_by_type="user",
+                proposed_payload=payload,
+            ),
+            "CMMS proposal",
+        )
+        if isinstance(result, dict):
+            st.session_state["cmms_approval_id"] = result.get("id")
+            st.session_state.pop("approvals_cache", None)
+            _badge("OK", "ok")
+            st.markdown(
+                f"Proposed approval **{_escape(result.get('id'))}** "
+                f"(status {_escape(result.get('status'))})."
+            )
+
+    st.markdown("**Execute an approved CMMS approval into a mock work order**")
+    token, _ = _gate_inputs("cmms")
+    approval_id = st.text_input(
+        "Approval id",
+        key="cmms_exec_approval",
+        value=st.session_state.get("cmms_approval_id") or "",
+    )
+    if st.button(
+        "Execute mock CMMS draft",
+        key="cmms_exec",
+        disabled=not (token and approval_id.strip()),
+    ):
+        result = _try(
+            lambda: client.draft_work_order(approval_id.strip(), token=token), "CMMS draft"
+        )
+        if isinstance(result, dict):
+            st.session_state.pop("work_orders_cache", None)
+            _badge("OK", "ok")
+            st.markdown(
+                f"Work order **{_escape(result.get('id'))}** "
+                f"({_escape(result.get('status'))})"
+            )
+            _kv("Asset", result.get("asset_id"))
+            _kv("Priority", result.get("priority"))
+            disclaimer = result.get("disclaimer") or R.CMMS_MOCK_DISCLAIMER
+            st.markdown(
+                f'<div class="maintai-disclaimer">{_escape(disclaimer)}</div>',
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("**Mock work-order drafts**")
+    work_orders = _load(client, "work_orders_cache", client.list_work_orders)
+    if st.button("Refresh drafts", key="refresh_work_orders"):
+        _reload(client, "work_orders_cache", client.list_work_orders)
+        work_orders = _load(client, "work_orders_cache", client.list_work_orders)
+    if work_orders:
+        st.dataframe(R.work_order_rows(work_orders))
+    else:
+        st.info("No mock work-order drafts yet.")
+
+
 # -- dispatch ------------------------------------------------------------------
 
 
@@ -1101,6 +1662,7 @@ def _render_page(key: str, client: APIClient) -> None:
         "registry": _page_registry,
         "predict": _page_predict,
         "copilot": _page_copilot,
+        "p1_monitor": _page_p1_monitor,
     }
     pages[key](client)
 

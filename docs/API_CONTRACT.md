@@ -255,14 +255,22 @@ Monitoring only observes: it never trains, deploys, promotes, or creates an
 approval request. A single request-level audit event stores only metadata
 (run/model ids, source, counts, severities) — never raw rows.
 
-## Planned P1
+## P1 Decision Actions (implemented, prefix `/api/v1`)
 
 ```text
+POST /experiments/{id}/cost-comparison
+POST /models/{id}/promotion-request
+POST /models/{id}/promote
+POST /predictions/{id}/feedback       GET /predictions/{id}/feedback
 POST /cmms/work-orders/draft          GET /cmms/work-orders
 ```
 
-(Approvals and monitoring are implemented — see the "P1 Approvals" and
-"P1 Monitoring" sections above.)
+Cost comparison is deterministic and does not retrain or persist assumptions.
+Approval decisions authorize but never execute actions. Model promotion and
+mock-CMMS drafting use separate token-gated execution endpoints and persist an
+idempotent execution receipt. Technician feedback is append-only and never
+triggers online learning. CMMS responses are always labeled mock and never call
+an external connector.
 
 ## Conventions
 - JSON bodies; Pydantic v2 validation; 4xx with readable `detail`.

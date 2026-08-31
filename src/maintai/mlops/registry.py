@@ -239,6 +239,27 @@ class MLflowRegistry:
         except Exception as exc:  # noqa: BLE001
             raise RegistryError(f"MLflow registry failed: {type(exc).__name__}") from exc
 
+    def promote_champion(self, model_name: str, version: str) -> RegistryVersion:
+        """Promote a registered version to the ``champion`` alias (P1, gated).
+
+        This is the only operation that may set the ``champion`` alias. It
+        accepts no alias argument, so an arbitrary alias can never be set here;
+        callers must have already cleared the human approval gate (see
+        :mod:`maintai.application.lifecycle`). ``set_alias`` remains limited to
+        the P0 ``candidate`` alias.
+        """
+        name = _validate_registry_name(model_name)
+        version = _validate_version(version)
+        client = self._client()
+        try:
+            client.set_registered_model_alias(name, CHAMPION_ALIAS, version)
+            mv = client.get_model_version(name, version)
+            return self._to_version(mv, CHAMPION_ALIAS)
+        except RegistryError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise RegistryError(f"MLflow registry failed: {type(exc).__name__}") from exc
+
     def healthcheck(self) -> bool:
         """Return ``True`` when the registry backend is reachable."""
         try:

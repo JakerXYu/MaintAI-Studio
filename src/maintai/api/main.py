@@ -12,16 +12,19 @@ from collections.abc import Callable
 from urllib.request import urlopen
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 
 from maintai import __version__
 from maintai.agent.service import CopilotService
 from maintai.api.approvals import build_approval_service, build_approvals_router
+from maintai.api.cmms import build_cmms_router, build_cmms_service
 from maintai.api.copilot import build_copilot_router, build_copilot_service
 from maintai.api.datasets import build_dataset_service, build_datasets_router
 from maintai.api.experiments import build_experiment_service, build_experiments_router
+from maintai.api.feedback import build_feedback_router, build_feedback_service
+from maintai.api.lifecycle import build_lifecycle_router, build_lifecycle_service
 from maintai.api.models import (
     build_model_services,
     build_models_router,
@@ -31,12 +34,15 @@ from maintai.api.monitoring import build_monitoring_router, build_monitoring_ser
 from maintai.api.request_id import InvalidRequestIdError, validate_request_id
 from maintai.application.datasets import DatasetService
 from maintai.application.experiments import ExperimentService
+from maintai.application.lifecycle import ModelLifecycleService
 from maintai.application.models import ModelRegistryService
 from maintai.application.monitoring import MonitoringService
 from maintai.application.predictions import PredictionService
 from maintai.approvals import ApprovalService
+from maintai.cmms import MockCMMSService
 from maintai.config import Settings, get_settings
 from maintai.db.session import get_session_factory
+from maintai.feedback import FeedbackService
 
 
 def _mlflow_healthcheck(tracking_uri: str) -> None:
@@ -58,6 +64,9 @@ def create_app(
     approval_service: ApprovalService | None = None,
     approval_token: str | None = None,
     monitoring_service: MonitoringService | None = None,
+    lifecycle_service: ModelLifecycleService | None = None,
+    feedback_service: FeedbackService | None = None,
+    cmms_service: MockCMMSService | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     session_factory = session_factory or get_session_factory()
@@ -84,6 +93,12 @@ def create_app(
         approval_service = build_approval_service(session_factory)
     if monitoring_service is None:
         monitoring_service = build_monitoring_service(session_factory, settings, dataset_service)
+    if lifecycle_service is None:
+        lifecycle_service = build_lifecycle_service(session_factory, settings)
+    if feedback_service is None:
+        feedback_service = build_feedback_service(session_factory)
+    if cmms_service is None:
+        cmms_service = build_cmms_service(session_factory)
     effective_approval_token = approval_token
     if effective_approval_token is None and settings.approval_api_token is not None:
         effective_approval_token = settings.approval_api_token.get_secret_value()
@@ -101,6 +116,14 @@ def create_app(
         prefix="/api/v1",
     )
     app.include_router(build_monitoring_router(monitoring_service), prefix="/api/v1")
+    app.include_router(
+        build_lifecycle_router(lifecycle_service, token=effective_approval_token),
+        prefix="/api/v1",
+    )
+    app.include_router(build_feedback_router(feedback_service), prefix="/api/v1")
+    app.include_router(
+        build_cmms_router(cmms_service, token=effective_approval_token), prefix="/api/v1"
+    )
 
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):
@@ -129,6 +152,10 @@ def create_app(
             )
         response.headers[settings.request_id_header] = request_id
         return response
+
+    @app.get("/", include_in_schema=False)
+    def root() -> RedirectResponse:
+        return RedirectResponse(url=app.docs_url or "/docs")
 
     @app.get("/health", tags=["health"])
     def health() -> dict:

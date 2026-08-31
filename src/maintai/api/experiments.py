@@ -24,6 +24,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from maintai.application.datasets import DatasetNotFoundError, DatasetService, StorageError
 from maintai.application.experiments import (
+    CostComparisonIncompleteError,
+    CostComparisonUnsupportedError,
     DatasetNotReadyError,
     ExperimentNotFoundError,
     ExperimentService,
@@ -34,7 +36,7 @@ from maintai.config import Settings
 from maintai.data.ingest import DataIngestError
 from maintai.data.split import SplitConfig, SplitError
 from maintai.db.experiment_repository import ExperimentRepository
-from maintai.ml.schemas import MLSettings
+from maintai.ml.schemas import CostAssumptions, MLSettings, ModelCostRow
 from maintai.mlops.tracker import MLflowTracker
 
 _MLFLOW_RUNS_PREFIX = "runs:/"
@@ -143,6 +145,36 @@ class ComparisonResponse(BaseModel):
     value: float | None = None
 
 
+class CostComparisonRequest(BaseModel):
+    """Request body for cost-aware comparison (demo cost assumptions).
+
+    ``fn_cost``/``fp_cost`` must be finite non-negative numbers and
+    ``minimum_recall`` a finite probability in [0, 1]. Arbitrary fields are
+    rejected outright.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    fn_cost: float = Field(ge=0.0, allow_inf_nan=False)
+    fp_cost: float = Field(ge=0.0, allow_inf_nan=False)
+    minimum_recall: float = Field(ge=0.0, le=1.0, allow_inf_nan=False)
+
+
+class CostComparisonResponse(BaseModel):
+    """Stable JSON shape for a cost-aware comparison (demo disclaimer included)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    experiment_id: str
+    metric_best: str | None = None
+    cost_best: str | None = None
+    rows: list[ModelCostRow]
+    notes: list[str] = Field(default_factory=list)
+    assumptions: CostAssumptions
+    minimum_recall: float
+    disclaimer: str
+
+
 class SingleTrainingCoordinator:
     """Serialize CPU-heavy experiment runs inside one API process.
 
@@ -249,5 +281,28 @@ def build_experiments_router(
             return service.comparison(experiment_id)
         except ExperimentNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @router.post(
+        "/{experiment_id}/cost-comparison",
+        response_model=CostComparisonResponse,
+    )
+    def cost_comparison(
+        experiment_id: str, body: CostComparisonRequest
+    ) -> CostComparisonResponse:
+        try:
+            return service.cost_comparison(
+                experiment_id,
+                fn_cost=body.fn_cost,
+                fp_cost=body.fp_cost,
+                minimum_recall=body.minimum_recall,
+            )
+        except ExperimentNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except CostComparisonIncompleteError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except CostComparisonUnsupportedError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except ExperimentServiceError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     return router

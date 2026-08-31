@@ -91,6 +91,22 @@ MONITORING_REPLAY_KINDS: tuple[str, ...] = (
     MONITORING_REPLAY_INCREASED_FAILURE_RISK,
 )
 
+# Model lifecycle states (champion/challenger lifecycle, one row per registered
+# model; advanced challenger -> champion -> archived by the P1 registry service).
+MODEL_LIFECYCLE_CHALLENGER = "challenger"
+MODEL_LIFECYCLE_CHAMPION = "champion"
+MODEL_LIFECYCLE_ARCHIVED = "archived"
+
+# Technician feedback outcomes (append-only, human-submitted, never updated).
+FEEDBACK_OUTCOME_CONFIRMED_ISSUE = "confirmed_issue"
+FEEDBACK_OUTCOME_FALSE_ALARM = "false_alarm"
+FEEDBACK_OUTCOME_DIFFERENT_ISSUE = "different_issue"
+FEEDBACK_OUTCOME_NO_ACTION_NEEDED = "no_action_needed"
+
+# Mock CMMS work-order status (draft -> approved after human approval).
+CMMS_WORK_ORDER_STATUS_DRAFT = "draft"
+CMMS_WORK_ORDER_STATUS_APPROVED = "approved"
+
 
 class Dataset(Base):
     __tablename__ = "datasets"
@@ -366,4 +382,141 @@ class MonitoringRun(Base):
     )
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+
+
+class ModelLifecycleState(Base):
+    """One lifecycle record per registered model (champion/challenger).
+
+    Exactly one row exists per registered model (``registered_model_id`` is
+    unique). The P1 registry service advances the row through the
+    ``challenger -> champion -> archived`` states; ``candidate`` models have no
+    row until they clear the evaluation gate. P0's ``RegisteredModel`` columns
+    (``alias``/``deployment_status``/``deployed``) are not replaced — this table
+    is an additive P1 overlay.
+    """
+
+    __tablename__ = "model_lifecycle_states"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('challenger', 'champion', 'archived')",
+            name="ck_model_lifecycle_states_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    registered_model_id: Mapped[str] = mapped_column(
+        ForeignKey("registered_models.id", ondelete="RESTRICT"),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
+    )
+
+
+class ApprovalExecution(Base):
+    """One execution receipt per approval request.
+
+    Written only after an approved action actually succeeds, so the row itself
+    is the "succeeded receipt". ``approval_id`` is unique: a single approval can
+    be executed at most once. The payload stores only machine-readable receipt
+    metadata (ids, timestamps, status), never the proposed/decision payloads.
+    """
+
+    __tablename__ = "approval_executions"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    approval_id: Mapped[str] = mapped_column(
+        ForeignKey("approval_requests.id", ondelete="RESTRICT"),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+    receipt_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    succeeded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False, index=True
+    )
+
+
+class TechnicianFeedback(Base):
+    """Append-only technician feedback on a prediction or maintenance recommendation.
+
+    Rows are immutable once written (no update/delete path) and record exactly
+    one of four outcomes. ``prediction_event_id`` links the feedback to the
+    prediction it is about; ``registered_model_id`` records the model that
+    produced it. Future use: evaluation, threshold tuning, retraining labels.
+    """
+
+    __tablename__ = "technician_feedback"
+    __table_args__ = (
+        CheckConstraint(
+            "outcome IN ('confirmed_issue', 'false_alarm', 'different_issue', "
+            "'no_action_needed')",
+            name="ck_technician_feedback_outcome",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    prediction_event_id: Mapped[str | None] = mapped_column(
+        ForeignKey("prediction_events.id", ondelete="RESTRICT"), index=True, nullable=True
+    )
+    registered_model_id: Mapped[str | None] = mapped_column(
+        ForeignKey("registered_models.id", ondelete="RESTRICT"), index=True, nullable=True
+    )
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    comment: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    technician_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False, index=True
+    )
+
+
+class MockCMMSWorkOrder(Base):
+    """Mock CMMS work-order draft gated by a unique human approval.
+
+    Each draft is tied to exactly one approval request (``approval_id`` unique);
+    the owning P1 service creates it in ``draft`` and later transitions it to
+    ``approved`` only after the corresponding approval reaches a terminal
+    approved state. This is a demonstration mock — no live CMMS is connected.
+    """
+
+    __tablename__ = "mock_cmms_work_orders"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft', 'approved')",
+            name="ck_mock_cmms_work_orders_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    approval_id: Mapped[str] = mapped_column(
+        ForeignKey("approval_requests.id", ondelete="RESTRICT"),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+    asset_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    priority: Mapped[str] = mapped_column(String(32), nullable=False)
+    recommended_action: Mapped[str] = mapped_column(String(1024), nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    risk_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    evidence_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    source_model_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=CMMS_WORK_ORDER_STATUS_DRAFT
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False, index=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
     )
