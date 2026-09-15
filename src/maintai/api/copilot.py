@@ -71,6 +71,7 @@ def build_copilot_service(
         ),
         base_url=settings.llm_base_url,
         model=settings.llm_model,
+        thinking=settings.llm_thinking,
     )
     tools = CopilotTools(
         dataset_service=dataset_service,

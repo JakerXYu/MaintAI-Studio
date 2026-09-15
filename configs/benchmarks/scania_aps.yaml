@@ -1,0 +1,51 @@
+# Scania APS (Air Pressure System) failure benchmark configuration.
+#
+# This mirrors the constants in `src/maintai/benchmarks/scania_aps.py` and is the
+# static reference for the downstream training/evaluation slice. It is NOT loaded
+# by the P0/P1 application settings (configs/default.yaml) — the benchmark
+# adapter reads its own module constants. Values are the official UCI dataset
+# facts, not demo assumptions, except where noted.
+
+dataset:
+  name: scania_aps
+  target: aps_failure
+  # UCI's page says 171 features; the downloaded archive contains 171 columns
+  # total: class + 170 features. The archive is used without fabricating a column.
+  n_features: 170
+  uci_listing_feature_count: 171
+  train_rows: 60000
+  test_rows: 16000
+  missing_token: na
+  positive_label: pos
+  negative_label: neg
+  source:
+    url: "https://archive.ics.uci.edu/static/public/421/aps+failure+at+scania+trucks.zip"
+    page: "https://archive.ics.uci.edu/dataset/421/aps+failure+at+scania+trucks"
+    doi: "10.24432/C51S51"
+    creator: "Scania CV AB"
+    license: "CC BY 4.0 (per UCI listing; description.txt carries a GPL-3.0-or-later notice)"
+    citation: "APS Failure at Scania Trucks [Dataset]. (2016). UCI Machine Learning Repository. https://doi.org/10.24432/C51S51."
+    archive_sha256: "5504d0402f54faaf97ac0ca085a621645763f5cfea2eb29c592b057d43d4db89"
+  raw_dir: "data/raw/scania_aps"
+  prepared_dir: "data/raw/scania_aps/prepared"
+
+# Official IDA 2016 challenge cost metric: an unnecessary check (false positive)
+# costs 10, and a missed faulty truck (false negative) costs 500. These are the
+# challenge's economics, not MaintAI's.
+costs:
+  fp_cost: 10
+  fn_cost: 500
+  currency_label: "challenge cost units"
+
+# Binary classification decision threshold for the positive (failure) class.
+threshold: 0.5
+
+# Downstream training targets the P0 model catalog (binary classification).
+models:
+  task: binary_classification
+  catalog: [logistic_regression, random_forest, xgboost]
+
+# Disable the product UI's demo recall gate for an unconstrained catalog
+# benchmark. Model/cost ranking below is post-hoc on the consumed official test.
+recommendation:
+  minimum_recall: 0.0

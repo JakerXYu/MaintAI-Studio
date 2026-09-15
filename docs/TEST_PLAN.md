@@ -75,11 +75,16 @@ Accept: `postgres`, `mlflow`, `migrate` (one-shot), `api`, `ui` healthy;
 
 ## Current status
 
-- Local Python 3.11 venv: `ruff check .` clean; final local `pytest -q`
-  collected and passed **385 tests**, including E2E and the single-training
-  concurrency guard. Targeted review runs:
-  UI 59, Copilot/preview 82, e2e 2.
+- Historical P0 Freeze (2026-08-30): **385 tests passed**, including E2E and
+  the single-training concurrency guard.
+- Scania APS benchmark change (2026-09-01): BEFORE **630 collected/passed**;
+  AFTER **684 collected/passed**. The 54 additions cover parser/missing/label,
+  official split, result/cost serialization, real-core runner smoke, and the
+  12-scenario deterministic Copilot evaluation.
+- Current local Python 3.11 gates: `ruff check .`, `pytest -q`, and `pip check`
+  pass. `docker compose config --quiet` passes; Docker Desktop daemon was not
+  running, so this benchmark change did not repeat the container startup gate.
 - `uv lock --check` passes. Demo data SHA-256:
   `2b4108048cad5a1aa3c2328890c7d674cdbde24c3f130aceeae6092c3ad33c1b`.
-- Docker Compose runtime: **passed**. Postgres/MLflow business counts, live
-  HTTP E2E, UI smoke, and post-restart prediction were verified.
+- Historical P0 Docker Compose runtime: **passed**. Postgres/MLflow business
+  counts, live HTTP E2E, UI smoke, and post-restart prediction were verified.

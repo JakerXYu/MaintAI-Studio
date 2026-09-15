@@ -1,5 +1,8 @@
 # P1 Scope — MaintAI Studio
 
+> **Phase Scope Snapshot.** This file records P1 demo-scope decisions and
+> closure. `docs/CURRENT_STATUS.md` is the single authoritative CURRENT status.
+
 P1 is implemented **only after P0 Freeze** (see `AGENTS.md`). Do not create
 empty P1 modules during P0. Full criteria are in the parent spec (§11, §15).
 

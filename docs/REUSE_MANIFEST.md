@@ -57,3 +57,12 @@ into* `Project_ABB` with a source note; never import across projects.
 `.env`, secrets/API keys, `data/` (CMMS + synthetic), `traces/` (eval outputs),
 `.venv/`, `__pycache__/`, `.pytest_cache/`, and any real SSP/Bosch/Fiix asset,
 work-order, BOM, quote, or endpoint data. None of these are used.
+
+## External benchmark provenance
+
+The optional Scania APS track downloads **APS Failure at Scania Trucks** from
+the UCI Machine Learning Repository (DOI `10.24432/C51S51`) into ignored local
+storage. It is not copied from the reference project and is not ABB, SSP,
+Bosch, Fiix, or other proprietary project data. The UCI page lists CC BY 4.0;
+the archive description also carries a GPL-3.0-or-later notice from Scania CV
+AB. Raw rows and generated model artifacts are never committed.

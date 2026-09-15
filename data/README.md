@@ -44,3 +44,23 @@ seeded generator):
 ```bash
 python scripts/generate_demo_data.py
 ```
+
+## External benchmark data
+
+The optional Scania APS benchmark uses the public UCI dataset **APS Failure at
+Scania Trucks** (DOI `10.24432/C51S51`). It is real external industrial data,
+not ABB proprietary data and not part of the default synthetic demo.
+
+Raw and prepared benchmark files stay under the git-ignored
+`data/raw/scania_aps/` directory. Download and prepare them locally:
+
+```bash
+python scripts/download_scania_aps.py
+python scripts/prepare_scania_aps.py
+```
+
+The UCI listing marks the dataset CC BY 4.0; the archive's bundled description
+also contains a GPL-3.0-or-later notice from Scania CV AB. Both notices are
+recorded because the repository does not reinterpret third-party licensing.
+Only adapter/config/scripts and derived numeric benchmark documentation are
+committed; no raw Scania rows are committed.

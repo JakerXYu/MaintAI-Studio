@@ -19,11 +19,17 @@ present; otherwise it falls back to the offline mock.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 import httpx
 
 DEFAULT_TIMEOUT_SECONDS = 30.0
+
+# Optional thinking mode. ``None`` preserves the provider's default payload;
+# ``"enabled"``/``"disabled"`` add ``thinking: {"type": <mode>}`` to the body.
+ThinkingMode = Literal["enabled", "disabled"]
+
+_VALID_THINKING_MODES = frozenset({"enabled", "disabled"})
 
 # Deterministic, secret-free narrative. It contains no invented statistics,
 # causality, or actions — quantified values must be supplied by tool evidence.
@@ -81,16 +87,27 @@ class OpenAICompatibleProvider:
         model: str,
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         transport: httpx.BaseTransport | None = None,
+        thinking: ThinkingMode | None = None,
     ) -> None:
         if not base_url or not model:
             raise ValueError("base_url and model are required for the provider")
         if not api_key:
             raise ValueError("api_key is required for the provider")
+        if thinking is not None and thinking not in _VALID_THINKING_MODES:
+            raise ValueError("thinking must be 'enabled' or 'disabled'")
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._model = model
         self._timeout = timeout
         self._transport = transport
+        self._thinking = thinking
+
+    def __repr__(self) -> str:
+        # Deliberately excludes the API key so it can never leak via logging.
+        return (
+            f"{type(self).__name__}(base_url={self._base_url!r}, "
+            f"model={self._model!r}, thinking={self._thinking!r})"
+        )
 
     def invoke(self, messages: list[dict[str, str]], **kwargs: Any) -> LLMResponse:
         del kwargs
@@ -100,6 +117,8 @@ class OpenAICompatibleProvider:
             "messages": [dict(message) for message in messages],
             "temperature": 0.0,
         }
+        if self._thinking is not None:
+            payload["thinking"] = {"type": self._thinking}
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
@@ -117,8 +136,11 @@ class OpenAICompatibleProvider:
             IndexError,
             TypeError,
             ValueError,
-        ) as exc:
-            raise ProviderError("LLM provider request failed") from exc
+        ):
+            # Chaining is suppressed so the original httpx exception (which may
+            # embed the request/response) can never leak a secret through the
+            # exception ``__cause__``/``__context__``.
+            raise ProviderError("LLM provider request failed") from None
         if not isinstance(content, str):
             raise ProviderError("LLM provider returned an invalid response")
         return LLMResponse(content=content)
@@ -131,6 +153,7 @@ def build_provider(
     base_url: str | None,
     model: str | None,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
+    thinking: ThinkingMode | None = None,
 ) -> LLMProvider:
     """Select the provider from configuration.
 
@@ -144,5 +167,6 @@ def build_provider(
             api_key=api_key,
             model=model,
             timeout=timeout,
+            thinking=thinking,
         )
     return MockProvider()

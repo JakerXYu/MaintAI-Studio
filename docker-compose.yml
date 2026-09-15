@@ -63,6 +63,7 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_MODEL: ${LLM_MODEL:-}
+      LLM_THINKING: ${LLM_THINKING:-}
       APPROVAL_API_TOKEN: ${APPROVAL_API_TOKEN:-}
     depends_on:
       migrate:

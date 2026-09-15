@@ -110,10 +110,12 @@ Status codes:
 - `500` registry/artifact backend failure; a stable `detail` is returned and
   absolute paths are never leaked.
 
-P0 registers a trained run as a ``candidate`` and `deploy-demo` flips exactly
-one version of a name to ``demo_deployed``. There is **no** ``champion`` or
-``Production`` transition and no promotion-request route: model promotion
-requires human approval and belongs to P1. Responses expose only ``models:/``
+Historical P0 behavior: P0 registers a trained run as a ``candidate`` and
+`deploy-demo` flips exactly one version of a name to ``demo_deployed``. There is
+**no** ``champion`` or
+``Production`` transition in that P0 route set. Current P1 adds a separate
+approval-gated promotion-request/execution flow; it is not production serving.
+Responses expose only ``models:/``
 MLflow URIs — never raw filesystem paths or ``file://`` URIs.
 
 ## Phase B Predictions (implemented, prefix `/api/v1`)
@@ -196,12 +198,18 @@ Human decisions are gated by **both** of:
 The token is never logged, echoed in a response, or written to the audit trail,
 and audit events never contain proposed/decision payloads.
 
-## Planned P0
+## Historical P0 endpoint plan (archived)
 
 ```text
 POST /explain/local                   GET /explain/global/{model_id}
 POST /copilot/chat
 ```
+
+Current disposition: `POST /copilot/chat` is implemented. Dedicated
+`/explain/local` and `/explain/global/{model_id}` routes were not implemented;
+global explanation is carried in experiment snapshots and local explanation in
+prediction responses. This archived block is not a statement of current API
+availability; use the implemented sections and `docs/CURRENT_STATUS.md`.
 
 ## P1 Monitoring (implemented, prefix `/api/v1`)
 

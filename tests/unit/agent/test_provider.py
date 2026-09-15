@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 
@@ -81,6 +83,8 @@ def test_openai_provider_raises_stable_error_without_leaking_secret():
     message = str(excinfo.value)
     assert "sk-secret-123" not in message
     assert "LLM provider request failed" in message
+    # Chaining is suppressed so no httpx request/response can leak via __cause__.
+    assert excinfo.value.__cause__ is None
 
 
 def test_openai_provider_requires_config():
@@ -88,3 +92,71 @@ def test_openai_provider_requires_config():
         OpenAICompatibleProvider(base_url="", api_key="sk", model="m")
     with pytest.raises(ValueError):
         OpenAICompatibleProvider(base_url="https://x", api_key="", model="m")
+
+
+def test_openai_provider_repr_does_not_leak_secret():
+    provider = OpenAICompatibleProvider(
+        base_url="https://example.com/v1",
+        api_key="sk-secret-123",
+        model="gpt-test",
+    )
+    assert "sk-secret-123" not in repr(provider)
+    assert "gpt-test" in repr(provider)
+
+
+def _payload_for(thinking: str | None) -> dict:
+    """Run one offline completion and return the request JSON body."""
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    provider = OpenAICompatibleProvider(
+        base_url="https://example.com/v1",
+        api_key="sk-secret-123",
+        model="gpt-test",
+        thinking=thinking,
+        transport=httpx.MockTransport(handler),
+    )
+    provider.invoke([{"role": "user", "content": "question"}])
+    return seen["body"]
+
+
+def test_payload_adds_thinking_when_mode_set():
+    for mode in ("enabled", "disabled"):
+        body = _payload_for(mode)
+        assert body["thinking"] == {"type": mode}
+        assert body["temperature"] == 0.0
+
+
+def test_payload_preserves_old_shape_when_thinking_none():
+    body = _payload_for(None)
+    assert "thinking" not in body
+    assert body == {
+        "model": "gpt-test",
+        "messages": [{"role": "user", "content": "question"}],
+        "temperature": 0.0,
+    }
+
+
+def test_openai_provider_rejects_invalid_thinking_mode():
+    with pytest.raises(ValueError):
+        OpenAICompatibleProvider(
+            base_url="https://example.com/v1",
+            api_key="sk",
+            model="m",
+            thinking="maybe",
+        )
+
+
+def test_build_provider_passes_through_thinking():
+    provider = build_provider(
+        provider="openai-compatible",
+        api_key="sk-x",
+        base_url="https://example.com/v1",
+        model="gpt-test",
+        thinking="disabled",
+    )
+    assert isinstance(provider, OpenAICompatibleProvider)
+    assert provider._thinking == "disabled"

@@ -34,6 +34,24 @@ evidence, approvals, champion lifecycle, feedback, mock CMMS, and one
 consolidated Streamlit page. See [`docs/P1_SCOPE.md`](docs/P1_SCOPE.md) and the
 [Chinese user guide](docs/USER_GUIDE_CN.md).
 
+An independent external benchmark track is available for the public UCI
+**Scania APS Failure at Scania Trucks** dataset. It preserves the official
+train/test holdout and challenge FP/FN cost definition; it is separate from the
+synthetic demo and is not an ABB dataset. See
+[`docs/benchmarks/SCANIA_APS_BENCHMARK.md`](docs/benchmarks/SCANIA_APS_BENCHMARK.md).
+
+Current frozen benchmark highlights (2026-09-01):
+
+- Scania APS XGBoost: F1 `0.831`, PR-AUC/AP `0.927`, challenge cost `48,660`.
+- Copilot MockProvider baseline: tool selection `8/8`, task success `3/10`,
+  grounded numeric answers `0/6`.
+
+The first Copilot benchmark is intentionally preserved as a pre-improvement
+baseline. Current capability status and evaluation definitions live in
+[`docs/CURRENT_STATUS.md`](docs/CURRENT_STATUS.md),
+[`docs/BENCHMARKS.md`](docs/BENCHMARKS.md), and
+[`docs/AGENT_EVALUATION.md`](docs/AGENT_EVALUATION.md).
+
 ## ABB Theme 1 mapping
 
 Theme 1 asks for an "AI-powered AutoML + MLOps Copilot for Industrial
@@ -107,8 +125,8 @@ Full details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 |---|---|---|
 | Data | CSV/Parquet upload, SHA-256 dedupe, schema inference, profiling, >=6 quality checks, leakage detection, time/group-aware split | — |
 | Tasks / ML | Task recommendation (rule engine), preprocessing, 3 classification + 3 regression models, metrics, SHAP + permutation fallback, confidence, deterministic best-model | Cost-aware selection, unsupervised anomaly |
-| MLOps | MLflow tracking, candidate registration, `demo-deploy`, FastAPI predict (single/batch), audit log | Champion/challenger, drift, retraining, approval |
-| Agent | LangGraph copilot, read-only tool allowlist, mock + openai-compatible providers, action refusal/proposal | Action tools (drift, cost, CMMS, approval) |
+| MLOps | MLflow tracking, candidate registration, `demo-deploy`, FastAPI predict (single/batch), audit log | Champion/challenger, monitoring/drift, approval, feedback, mock CMMS; retraining recommendation only |
+| Agent | LangGraph copilot, seven read-only tools, mock + openai-compatible providers, action refusal/proposal | No P1 action tools; gated mutations remain explicit API/UI workflows |
 | UI | Home, Dataset & Health, Task & Plan, Experiments, Explainability, Registry & Deploy, Predict, Copilot | Consolidated P1 Monitor & Act page |
 | Ops | Runtime-verified Docker Compose stack, single in-process worker, `create_all` bootstrap | Replay/monitoring and approvals implemented; Alembic pending |
 
@@ -289,8 +307,9 @@ and [`docs/SECURITY_AND_SAFETY.md`](docs/SECURITY_AND_SAFETY.md).
 4. `deploy-demo` flips exactly one version to `demo_deployed` (demo serving).
 5. Inference runs only against `demo_deployed` models; each prediction is
    audited with a content hash (never the raw input).
-6. `champion`/Production promotion and retraining deployment are **not** in
-   P0 — they require human approval and belong to P1.
+6. `champion` promotion is outside P0; the P1 demo adds an approval-gated,
+   explicit champion lifecycle. It is not production serving. Automatic
+   retraining deployment is not implemented.
 
 ## Testing
 
@@ -300,9 +319,9 @@ pytest -q         # unit + integration + e2e (SQLite double)
 python scripts/http_e2e.py   # full loop against a running Compose stack
 ```
 
-The final local P0 review run on the Python 3.11 venv collected and passed
-**385 tests**, including the two subprocess E2E tests and the single-training
-concurrency guard. See
+Historical P0 Freeze evidence: **385 tests passed** on 2026-08-30. Before the
+external benchmark work the full repository collected/passed **630** tests;
+the current fact-freeze baseline is **684/684 passed**. See
 [`docs/TEST_PLAN.md`](docs/TEST_PLAN.md).
 
 ## Known limitations
@@ -312,18 +331,22 @@ concurrency guard. See
 - Training runs as a single in-process worker (no Celery/Redis/Kafka).
 - MLflow is the tracking/registry catalog; inference uses a manifest-rich,
   trusted package in the API artifact volume, cross-linked to its ModelRun.
-- `demo_deployed` is demo serving only — there is no `champion`/Production
-  transition in P0.
-- P1 monitoring/drift/anomaly/replay, cost-aware core, retraining evidence, and
-  approval state/API are implemented. Champion execution, feedback, mock CMMS,
-  P1 UI, and P1 E2E remain.
+- `demo_deployed` is demo serving only. P1 has an approval-gated champion
+  lifecycle, but no production stage, production connector, or production
+  serving claim.
+- P1 monitoring/drift/anomaly/replay, cost comparison, retraining evidence,
+  approvals, champion lifecycle, feedback, mock CMMS, and consolidated UI are
+  implemented as demo capabilities. Automatic retraining deployment, P1
+  one-command E2E, real CMMS, and enterprise identity remain absent.
 - Demo config values are **demo defaults**, not ABB or any industry standard.
 
 ## Privacy / data statement
 
-No proprietary or real asset data is used. The demo dataset is synthetic,
-generated in-repo from a fixed seed, and contains no personal information, no
-real asset identifiers, and no production telemetry. Credentials in
+No proprietary ABB/SSP/Bosch/Fiix data is used. The default demo dataset is
+synthetic, fixed-seed, and contains no personal information or real asset IDs.
+The optional Scania APS track uses public UCI operational truck data in ignored
+local storage; it is external benchmark evidence, not the default demo and not
+ABB data. Credentials in
 `.env.example` are demo defaults. This prototype provides model-based decision
 support only; it does not replace qualified maintenance, safety, or
 engineering judgment.

@@ -1,5 +1,9 @@
 # P0 Scope — MaintAI Studio
 
+> **Historical Snapshot — P0 Freeze.** This file preserves the scope and
+> acceptance state at the 2026-08-30 P0 Freeze. It is not the current project
+> capability matrix. See `docs/CURRENT_STATUS.md` for CURRENT status.
+
 P0 is the minimum complete, demoable closed loop. It must be fully working and
 frozen before any P1 work. Full acceptance criteria live in the parent spec
 (§9, §14); this is the condensed scope for implementation agents.

@@ -18,10 +18,11 @@ Engineer ──► Streamlit UI (HTTP only) ──► FastAPI API ──► Data
 
 - **Streamlit never** imports ML internals or DB directly. It only calls the API.
 - **FastAPI** owns validation, orchestration, and persistence boundaries.
-- **Postgres** stores `datasets`, `experiments`, `model_runs`,
-  `registered_models`, `audit_events`. **MLflow** stores experiment runs,
-  training artifacts, and the registry catalog. The API artifact volume stores
-  the manifest-rich trusted serving package cross-linked to its `ModelRun`.
+- **Postgres** stores P0 business metadata/audit plus additive P1 monitoring,
+  approval, lifecycle, feedback, execution-receipt, and mock-work-order tables;
+  see `docs/DATA_CONTRACT.md`. **MLflow** stores experiment runs, training
+  artifacts, and the registry catalog. The API artifact volume stores the
+  manifest-rich trusted serving package cross-linked to its `ModelRun`.
 - **SQLite** is a test-only double (see below).
 
 ## Key decisions / adjustments vs. the long spec
@@ -39,9 +40,9 @@ Engineer ──► Streamlit UI (HTTP only) ──► FastAPI API ──► Data
    `openai-compatible` path is env-configured, never hard-coded.
 5. **UI/API boundary.** Streamlit app reads `MAINTAI_API_URL` (default
    `http://localhost:8000`) and does not assume a shared process.
-6. **Demo deploy is not production.** `demo_deployed` is the only deployment
-   state in P0. There is no `champion` alias or `Production` stage; those
-   transitions require human approval and belong to P1.
+6. **Demo deploy is not production.** `demo_deployed` is the only P0 serving
+   state. P1 adds a separately persisted, approval-gated champion lifecycle,
+   but no `Production` stage or production serving connector.
 
 ## Runtime topology (docker-compose)
 
@@ -75,6 +76,9 @@ P1 adds `monitoring/`, `approvals/`, `feedback/`, and `cmms/`. Additive lifecycl
 execution-receipt, feedback, and mock-work-order tables preserve P0 deployment
 semantics. Approval and execution remain separate; the Streamlit P1 page uses
 only the same HTTP API boundary as the frozen P0 pages.
+
+For the authoritative current capability classification and validation quality,
+see `docs/CURRENT_STATUS.md`. P0/P1 scope files are historical phase snapshots.
 
 ## Health model
 

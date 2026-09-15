@@ -5,7 +5,7 @@ Tests use **SQLite** as a drop-in double, so every model below uses portable
 column types only (`String`, `Integer`, `Float`, `Boolean`, `DateTime`,
 `JSON`). Primary keys are generated UUID hex strings (`uuid4().hex`, 32 chars).
 
-## Implemented (Phase A) — `src/maintai/db/models.py`
+## Current implemented schema — `src/maintai/db/models.py`
 
 ### `datasets`
 `id`, `name`, `source_type`, `file_path`, `file_hash`, `row_count`,
@@ -28,16 +28,21 @@ column types only (`String`, `Integer`, `Float`, `Boolean`, `DateTime`,
 `id`, `actor_type` (`user|agent|system`), `actor_id`, `action`, `entity_type`,
 `entity_id`, `payload_json` (JSON), `created_at`.
 
-## Planned (P0/P1, not yet implemented)
+### P0/P1 additive tables
 
-- **PredictionEvent** (`prediction_id`, `model_version`, `asset_id`,
-  `event_time`, `prediction`, `probability`, `input_hash`, `created_at`).
-- **Approval** (`approval_id`, `action_type`, `object_id`,
-  `proposed_action_json`, `status`, `reviewer`, `review_comment`, `created_at`,
-  `resolved_at`).
-- **MockCMMSWorkOrder** (`work_order_id`, `asset_id`, `priority`,
-  `recommended_action`, `reason`, `risk_score`, `evidence_json`,
-  `source_model_version`, `approval_id`, `status`, `created_at`).
+- `prediction_events`: immutable prediction result metadata and input hash;
+  raw prediction input is not persisted.
+- `approval_requests`: pending/approved/rejected/modified decisions with
+  version-based compare-and-swap.
+- `monitoring_runs`: persisted drift, anomaly, and retraining evidence.
+- `model_lifecycle_states`: challenger/champion/archived overlay, separate from
+  P0 `demo_deployed` serving state.
+- `approval_executions`: idempotent receipt for an approved explicit action.
+- `technician_feedback`: append-only prediction feedback; no online learning.
+- `mock_cmms_work_orders`: local mock drafts only; no external CMMS connector.
+
+Exact columns and constraints are authoritative in `src/maintai/db/models.py`.
+No planned table should be inferred from older P0 snapshots.
 
 ## MLflow (separate store)
 

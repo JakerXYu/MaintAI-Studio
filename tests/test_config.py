@@ -1,6 +1,7 @@
 """Configuration tests (pydantic-settings)."""
 
-from pydantic import SecretStr
+import pytest
+from pydantic import SecretStr, ValidationError
 
 from maintai.config import Settings, get_settings
 
@@ -18,8 +19,29 @@ def test_empty_llm_strings_normalize_to_none():
     assert s.llm_model is None
 
 
-def test_llm_provider_defaults_to_mock():
-    assert Settings().llm_provider == "mock"
+def test_llm_provider_defaults_to_mock(monkeypatch):
+    # Isolate from the developer's real `.env` (which may select a real
+    # provider) and from any shell-level LLM_PROVIDER. Never read the real key.
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
+    assert Settings(_env_file=None).llm_provider == "mock"
+
+
+def test_llm_thinking_accepts_valid_modes():
+    assert Settings(llm_thinking="enabled", _env_file=None).llm_thinking == "enabled"
+    assert Settings(llm_thinking="disabled", _env_file=None).llm_thinking == "disabled"
+
+
+def test_llm_thinking_defaults_to_none():
+    assert Settings(_env_file=None).llm_thinking is None
+
+
+def test_llm_thinking_empty_normalizes_to_none():
+    assert Settings(llm_thinking="", _env_file=None).llm_thinking is None
+
+
+def test_llm_thinking_rejects_invalid_mode():
+    with pytest.raises(ValidationError):
+        Settings(llm_thinking="maybe", _env_file=None)
 
 
 def test_llm_key_is_masked():

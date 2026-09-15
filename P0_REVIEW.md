@@ -1,5 +1,9 @@
 # P0 Freeze Review — MaintAI Studio
 
+> **Archived Historical Snapshot.** All evidence and counts in this file refer
+> to the 2026-08-30 P0 Freeze. In particular, 385 is not the current repository
+> test count. See `docs/CURRENT_STATUS.md` and `docs/TEST_PLAN.md`.
+
 Final review evidence for the P0 Freeze completed on 2026-08-30.
 
 ## 1. Architecture review

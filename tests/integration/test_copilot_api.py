@@ -22,7 +22,7 @@ from maintai.api.main import create_app
 from maintai.application.datasets import DatasetService
 from maintai.audit.repository import AuditRepository
 from maintai.audit.service import AuditService
-from maintai.config import get_settings
+from maintai.config import Settings
 from maintai.db.dataset_repository import DatasetRepository
 
 CHAT_URL = "/api/v1/copilot/chat"
@@ -57,9 +57,19 @@ def dataset_service(session_factory, tmp_path):
 
 @pytest.fixture()
 def api_client(session_factory, dataset_service):
+    copilot_service = CopilotService(
+        tools=CopilotTools(
+            dataset_service=dataset_service,
+            experiment_service=None,
+            model_registry_service=None,
+            prediction_service=None,
+        ),
+        provider=MockProvider(),
+    )
     app = create_app(
         session_factory=session_factory,
         dataset_service=dataset_service,
+        copilot_service=copilot_service,
         mlflow_healthcheck=lambda: None,
     )
     with TestClient(app) as client:
@@ -137,7 +147,7 @@ def test_work_order_not_executed_via_api(api_client):
 
 
 def test_provider_defaults_to_mock(api_client):
-    settings = get_settings()
+    settings = Settings(_env_file=None)
     provider = build_provider(
         provider=settings.llm_provider,
         api_key=settings.llm_api_key.get_secret_value() if settings.llm_api_key else None,
@@ -150,7 +160,7 @@ def test_provider_defaults_to_mock(api_client):
 def test_chat_never_opens_network(session_factory, dataset_service, monkeypatch):
     dataset_id, _ = _profiled_dataset_id(dataset_service)
 
-    settings = get_settings()
+    settings = Settings(_env_file=None)
     provider = build_provider(
         provider=settings.llm_provider,
         api_key=settings.llm_api_key.get_secret_value() if settings.llm_api_key else None,

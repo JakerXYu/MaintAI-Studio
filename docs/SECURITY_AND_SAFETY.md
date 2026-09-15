@@ -62,14 +62,22 @@ raw input. This is pseudonymization, not anonymity: low-entropy inputs may be
 guessable. The demo dataset is synthetic (no personal data, no real asset ids,
 no production telemetry). See `data/README.md`.
 
+The optional Scania APS benchmark is public external UCI operational data in
+git-ignored local storage. It is not loaded into the default demo runtime and is
+not ABB/SSP/Bosch/Fiix proprietary data.
+
 ## Demo deploy & human-in-the-loop
 
 - `demo_deployed` is demo serving only. It never sets a `champion` alias or a
   `Production` stage.
-- P0 has no promotion route; model promotion, retraining deployment, and CMMS
-  actions require human approval and belong to P1 (not implemented).
-- The copilot refuses promotion/work-order requests and explains that approval
-  is required.
+- Historical P0 boundary: P0 had no promotion or CMMS route.
+- Current P1 demo capability: model-promotion and mock-CMMS actions require a
+  recorded approval and a separate explicit execution call. Automatic
+  retraining deployment is not implemented.
+- The bearer token plus self-asserted human actor header is a local demo gate,
+  not authentication, SSO, identity proof, authorization, or RBAC.
+- The copilot still proposes/refuses action intents; it does not execute the
+  P1 mutation routes.
 
 ## Required user-facing disclaimers
 

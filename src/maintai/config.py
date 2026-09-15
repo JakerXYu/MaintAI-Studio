@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 from functools import cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, SecretStr, field_validator
 from pydantic_settings import (
@@ -135,6 +136,7 @@ class Settings(BaseSettings):
     llm_api_key: SecretStr | None = None
     llm_base_url: str | None = None
     llm_model: str | None = None
+    llm_thinking: Literal["enabled", "disabled"] | None = None
 
     api_host: str = "0.0.0.0"
     api_port: int = 8000
@@ -171,6 +173,7 @@ class Settings(BaseSettings):
         "llm_api_key",
         "llm_base_url",
         "llm_model",
+        "llm_thinking",
         "approval_api_token",
         mode="before",
     )

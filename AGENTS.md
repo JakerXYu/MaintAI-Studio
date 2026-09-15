@@ -35,9 +35,10 @@ in the parent folder (do NOT modify that file or anything outside this repo).
   retraining/feedback/mock CMMS).
 - **P0 Freeze passed on 2026-08-30.** Local gates, locked Compose build,
   Postgres/HTTP-MLflow full workflow, UI smoke, and restart persistence passed.
-- Current phase: **P1 in progress**. Monitoring/anomaly/drift/replay,
-  cost-aware comparison, approval state/API, and retraining recommendations are
-  implemented. Champion execution, feedback, mock CMMS, P1 UI/E2E remain.
+- Current phase: **fact freeze after P1 demo closure**. Monitoring/anomaly/
+  drift/replay, cost comparison, approval, champion lifecycle, feedback, mock
+  CMMS, and the consolidated P1 UI are implemented. Retraining deployment and
+  a one-command P1 E2E remain absent. `docs/CURRENT_STATUS.md` is authoritative.
 
 ## 4. Module ownership (do not cross-edit without coordination)
 
@@ -47,7 +48,7 @@ in the parent folder (do NOT modify that file or anything outside this repo).
 - `src/maintai/db/**`, `src/maintai/api/**`, MLflow integration, Alembic → Agent D.
 - `src/maintai/agent/**` → Agent E.
 - `src/maintai/ui/**` → Agent F.
-- `src/maintai/monitoring/**`, `src/maintai/approvals/**`, `src/maintai/cmms/**` → Agent G (P1 only).
+- `src/maintai/monitoring/**`, `src/maintai/approvals/**`, `src/maintai/feedback/**`, `src/maintai/cmms/**` → Agent G (P1 only).
 - `tests/e2e/**`, `scripts/**`, demo docs, `README.md` → Agent H.
 
 ## 5. Code & safety rules
